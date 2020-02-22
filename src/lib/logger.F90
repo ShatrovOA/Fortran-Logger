@@ -38,6 +38,7 @@ private
     integer(I4P) :: debug_unit = stdout
     integer(I4P) :: info_unit = stdout
     integer(I4P) :: error_unit  = stderr
+    integer(I4P) :: warn_unit = stderr
     integer(I4P) :: null_unit
     integer(I4P) :: logger_unit
 
@@ -55,6 +56,7 @@ private
     procedure, pass(self),  public :: initialize
 #ifdef _MPI
     procedure, pass(self),  public :: mpi_init
+    procedure, pass(self) :: gather
 #endif
     procedure, pass(self),  public :: debug
     procedure, pass(self),  public :: info
@@ -131,8 +133,8 @@ private
     procedure, pass(self) :: open_scratch_file
     procedure, pass(self) :: close_scratch_file
     procedure, pass(self) :: write_message
-    procedure, pass(self) :: gather
     procedure, pass(self) :: checkerr
+    procedure, pass(self) :: current_timestamp
   end type fortran_logger
 
   interface get_passed_value
@@ -142,9 +144,14 @@ private
     
 contains
 
-  subroutine initialize(self, log_level, info_color, error_color, debug_color, warn_color,    &
-                                         info_unit, error_unit, debug_unit, warn_unit,        &
-                                         print_timestamp, timestamp_format, log_file          )
+!-------------------------------------------------------------------------------------
+  subroutine initialize(self, log_level,                                             &
+                        info_color, error_color, debug_color, warn_color,            &
+                        info_unit, error_unit, debug_unit, warn_unit,                &
+                        print_timestamp, timestamp_format, log_file                  )
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     integer(I4P),       optional, intent(in)    :: log_level
     character(len = *), optional, intent(in)    :: info_color
@@ -205,6 +212,8 @@ contains
 
     call cli%free()
 
+    call self%close_scratch_file()
+
     if(allocated(logger_file)) then
       self%use_log_file = .true.
       open(newunit = self%logger_unit,            &
@@ -217,7 +226,11 @@ contains
   end subroutine initialize
 
 #ifdef _MPI
+!-------------------------------------------------------------------------------------
   subroutine mpi_init(self, comm)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),    intent(inout) :: self
     type(MPI_Comm), optional, intent(in)    :: comm
 
@@ -233,7 +246,11 @@ contains
 
   end subroutine mpi_init
 
+!-------------------------------------------------------------------------------------
   subroutine gather(self, err, pos)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),  intent(inout) :: self
     integer(I4P),           intent(inout) :: err
     integer(I4P),           intent(out)   :: pos
@@ -245,7 +262,11 @@ contains
   end subroutine gather
 #endif
 
+!-------------------------------------------------------------------------------------
   subroutine get_integer(cli, switch, val, ierror)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(command_line_interface),  intent(inout) :: cli
     character(len = *),             intent(in)    :: switch
     integer(I4P),                   intent(out)   :: val
@@ -257,7 +278,11 @@ contains
 
   end subroutine get_integer
 
+!-------------------------------------------------------------------------------------
   subroutine get_string(cli, switch, val, ierror)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(command_line_interface),    intent(inout) :: cli
     character(len = *),               intent(in)    :: switch
     character(len = :), allocatable,  intent(out)   :: val
@@ -271,36 +296,38 @@ contains
 
   end subroutine get_string
 
+!-------------------------------------------------------------------------------------
   subroutine finalize(self)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),  intent(inout) :: self
 
-    call self%close_scratch_file()
+    ! call self%close_scratch_file()
 
     if(self%use_log_file) close(self%logger_unit)
 
   end subroutine finalize
 
-  function current_timestamp() result(timestamp)
+!-------------------------------------------------------------------------------------
+  function current_timestamp(self) result(timestamp)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
+    class(fortran_logger), intent(inout) :: self
     character(len = :), allocatable :: timestamp
-    integer(I4P) :: ts(8)
     type(datetime) :: dtime
-    character(3) :: day_of_week, month
     
-
     dtime = dtime%now()
-    ! day_of_week = dtime%isoweekdayShort()
-
-    timestamp = dtime%strftime('%c')
-
-    ! timestamp = day_of_week//', '//months(ts(2))//' '//trim(str(n = ts(3),no_sign=.true.))//', '//     &
-    !                                 trim(str(n = ts(5),no_sign=.true.))//':'//                         &
-    !                                 trim(str(n = ts(6),no_sign=.true.))//':'//                         &
-    !                                 trim(str(n = ts(7),no_sign=.true.))
-
+    timestamp = dtime%strftime(self%timestamp_format)
 
   end function current_timestamp
 
+!-------------------------------------------------------------------------------------
   subroutine set_default_values(self)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger), intent(inout) :: self
 
     self%info_color   = 'GREEN'
@@ -311,7 +338,11 @@ contains
 
   end subroutine set_default_values
 
+!-------------------------------------------------------------------------------------
   subroutine debug(self, routine, message)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
@@ -323,7 +354,11 @@ contains
   
   end subroutine debug
 
+!-------------------------------------------------------------------------------------
   subroutine info(self, routine, message)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
@@ -334,7 +369,11 @@ contains
   
   end subroutine info
 
+!-------------------------------------------------------------------------------------
   subroutine warn(self, routine, message)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
@@ -345,19 +384,27 @@ contains
   
   end subroutine warn
 
+!-------------------------------------------------------------------------------------
   subroutine check_error(self, check_routine, err, routine, is_fatal)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     character(len = *),           intent(in)    :: check_routine
     integer(I4P),                 intent(in)    :: err
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
     logical,            optional, intent(in)    :: is_fatal     !< Fatal error. Default is .false.
 
-    call self%checkerr(message = 'Subroutine '//check_routine//' returned error code:',  &
-                       err = err, routine = routine, is_fatal = is_fatal                  )
+    call self%checkerr(message = 'Subroutine '//check_routine//' returned error code: '//trim(str(n=err)),  &
+                       err = err, routine = routine, is_fatal = is_fatal                                    )
 
   end subroutine check_error
 
+!-------------------------------------------------------------------------------------
   subroutine checkerr(self, message, err, routine, is_fatal)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     character(len = *),           intent(in)    :: message
     integer(I4P),                 intent(in)    :: err
@@ -377,12 +424,16 @@ contains
 
   end subroutine checkerr
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank1_cR8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     complex(R8P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -391,12 +442,16 @@ contains
 
   end subroutine check_alloc_rank1_cR8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank1_cR4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     complex(R4P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -405,12 +460,16 @@ contains
 
   end subroutine check_alloc_rank1_cR4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank1_R8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     real(R8P),       allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -419,12 +478,16 @@ contains
 
   end subroutine check_alloc_rank1_R8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank1_R4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     real(R4P),       allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -433,12 +496,16 @@ contains
 
   end subroutine check_alloc_rank1_R4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank1_I8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I8P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -447,12 +514,16 @@ contains
 
   end subroutine check_alloc_rank1_I8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank1_I4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I4P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -461,12 +532,16 @@ contains
 
   end subroutine check_alloc_rank1_I4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank1_I2P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I2P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -475,12 +550,16 @@ contains
 
   end subroutine check_alloc_rank1_I2P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank1_I1P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I1P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -489,12 +568,16 @@ contains
 
   end subroutine check_alloc_rank1_I1P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank2_R8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     real(R8P),       allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -503,12 +586,16 @@ contains
 
   end subroutine check_alloc_rank2_R8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank2_R4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     real(R4P),       allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -517,12 +604,16 @@ contains
 
   end subroutine check_alloc_rank2_R4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank2_cR8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     complex(R8P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -531,12 +622,16 @@ contains
 
   end subroutine check_alloc_rank2_cR8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank2_cR4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     complex(R4P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -545,12 +640,16 @@ contains
 
   end subroutine check_alloc_rank2_cR4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank2_I8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I8P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -559,12 +658,16 @@ contains
 
   end subroutine check_alloc_rank2_I8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank2_I4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I4P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -573,12 +676,16 @@ contains
 
   end subroutine check_alloc_rank2_I4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank2_I2P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I2P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -587,12 +694,16 @@ contains
 
   end subroutine check_alloc_rank2_I2P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank2_I1P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I1P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -601,12 +712,16 @@ contains
 
   end subroutine check_alloc_rank2_I1P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank3_R8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     real(R8P),       allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -615,12 +730,16 @@ contains
 
   end subroutine check_alloc_rank3_R8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank3_R4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     real(R4P),       allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -629,12 +748,16 @@ contains
 
   end subroutine check_alloc_rank3_R4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank3_cR8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     complex(R8P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -643,12 +766,16 @@ contains
 
   end subroutine check_alloc_rank3_cR8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank3_cR4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     complex(R4P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -657,12 +784,16 @@ contains
 
   end subroutine check_alloc_rank3_cR4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank3_I8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I8P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -671,12 +802,16 @@ contains
 
   end subroutine check_alloc_rank3_I8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank3_I4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I4P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -685,12 +820,16 @@ contains
 
   end subroutine check_alloc_rank3_I4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank3_I2P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I2P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -699,12 +838,16 @@ contains
 
   end subroutine check_alloc_rank3_I2P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank3_I1P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self         !< Logger
     integer(I1P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -713,12 +856,16 @@ contains
 
   end subroutine check_alloc_rank3_I1P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank4_R8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self           !< Logger
     real(R8P),       allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -727,12 +874,16 @@ contains
 
   end subroutine check_alloc_rank4_R8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank4_R4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self           !< Logger
     real(R4P),       allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -741,12 +892,16 @@ contains
 
   end subroutine check_alloc_rank4_R4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank4_cR8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self           !< Logger
     complex(R8P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -755,12 +910,16 @@ contains
 
   end subroutine check_alloc_rank4_cR8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank4_cR4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self           !< Logger
     complex(R4P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -769,12 +928,16 @@ contains
 
   end subroutine check_alloc_rank4_cR4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank4_I8P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self           !< Logger
     integer(I8P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -783,12 +946,16 @@ contains
 
   end subroutine check_alloc_rank4_I8P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank4_I4P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self           !< Logger
     integer(I4P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -797,12 +964,16 @@ contains
 
   end subroutine check_alloc_rank4_I4P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank4_I2P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self           !< Logger
     integer(I2P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -811,12 +982,16 @@ contains
 
   end subroutine check_alloc_rank4_I2P
 
+!-------------------------------------------------------------------------------------
   subroutine check_alloc_rank4_I1P(self, check, check_name, routine)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self           !< Logger
     integer(I1P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err, pos
+    integer(I4P) :: err
 
     err = 0
     if(.not. allocated(check)) err = 1
@@ -825,7 +1000,11 @@ contains
 
   end subroutine check_alloc_rank4_I1P
 
+!-------------------------------------------------------------------------------------
   subroutine error(self, message, routine, err, rank, is_fatal)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
@@ -839,7 +1018,7 @@ contains
 
     if(self%log_level >= 1) then
       call self%write_message(self%error_unit, prefix = self%c_error_msg, message = message, routine = routine, &
-      err = err, rank = rank)
+      rank = rank)
       if(fatal_error) then
         call self%write_message(self%error_unit, prefix = self%c_error_msg, routine = routine,      &
                                 message = 'This error is fatal. Program will stop executing now...' )
@@ -852,18 +1031,21 @@ contains
 
   end subroutine error
 
-  subroutine write_message(self, unit, prefix, message, routine, err, rank)
+!-------------------------------------------------------------------------------------
+  subroutine write_message(self, unit, prefix, message, routine, rank)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     integer(I4P),                 intent(in)    :: unit
     character(len = *),           intent(in)    :: prefix
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
-    integer(I4P),       optional, intent(in)    :: err
     integer(I4P),       optional, intent(in)    :: rank
     character(len = :), allocatable :: timestamp, subrout, msg
 
     if(self%print_timestamp) then
-      timestamp = current_timestamp()
+      timestamp = self%current_timestamp()
     else
       timestamp = ''
     endif
@@ -875,14 +1057,17 @@ contains
     endif
 
     msg = message
-    if(present(err)) msg = msg//' '//trim(str(n = err))
     if(present(rank)) msg = msg//' on rank '//trim(str(n = rank, no_sign = .true.))
 
     write(unit, '(a)') timestamp//'  '//prefix//' -- '//subrout//' '//msg
     
   end subroutine write_message
 
+!-------------------------------------------------------------------------------------
   subroutine open_scratch_file(self)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger), intent(inout) :: self
 
     open( newunit = self%null_unit,   &
@@ -892,7 +1077,11 @@ contains
 
   end subroutine open_scratch_file
 
+!-------------------------------------------------------------------------------------
   subroutine close_scratch_file(self)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
     class(fortran_logger), intent(inout) :: self
 
     close(self%null_unit)
