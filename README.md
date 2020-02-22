@@ -1,7 +1,7 @@
 # Fortran Logger
  
 
-![logo]( https://travis-ci.com/ShatrovOA/Fortran-Logger.svg?branch=master)
+[![Build Status](https://travis-ci.com/ShatrovOA/Fortran-Logger.svg?branch=master)](https://travis-ci.com/ShatrovOA/Fortran-Logger)
 
 ## Example of usage
 
