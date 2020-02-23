@@ -24,7 +24,7 @@ use iso_fortran_env, only : error_unit, output_unit
   ! endif
 
 
-  call logger%initialize(log_level = 5, print_timestamp = .true.)
+  call logger%initialize(log_level = 4, print_timestamp = .true.)
 
   call logger%mpi_init()
 

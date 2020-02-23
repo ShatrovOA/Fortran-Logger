@@ -1,7 +1,13 @@
 # Fortran Logger
  
+ This library is still under development. 
 
 ![logo]( https://travis-ci.com/ShatrovOA/Fortran-Logger.svg?branch=master)
+
+## Main features
+- Free and Open Source Project
+- MPI Support
+- Fortran 2008+ standard compliant
 
 ## Example of usage
 
@@ -10,7 +16,7 @@ use fortran_logger_m, only : fortran_logger
 implicit none
   type(fortran_logger) :: logger
 
-  call logger%initialize(log_level = 5, print_timestamp = .true.)
+  call logger%initialize(log_level = 4, print_timestamp = .true.)
 
   call logger%debug(routine = 'test_routine 1', message = 'enter')
 
@@ -24,10 +30,6 @@ implicit none
   call logger%finalize()
 ```
 
+This example will produce the following output:
 
-```shell
-Sat Feb 22 22:29:41 2020  INFO  -- [test_routine 1] doing some stuff
-Sat Feb 22 22:29:41 2020  WARN  -- [test_routine 1] you cant do that
-Sat Feb 22 22:29:41 2020  ERROR --  Subroutine external subroutine returned error code: -1 on rank 0
-Sat Feb 22 22:29:41 2020  ERROR --  This error is fatal. Program will stop executing now...
-```
+![Sample Output](./doc/sample_output.png)
