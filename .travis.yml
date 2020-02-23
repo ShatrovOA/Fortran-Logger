@@ -1,0 +1,17 @@
+language: c
+sudo: false
+
+addons:
+  apt:
+    packages:
+      - gfortran-9
+      - open-mpi
+      - python-pip
+
+
+# script:
+#   - gfortran -fprofile-arcs -ftest-coverage -O0 hello.f90 -o hello
+#   - ./hello
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
