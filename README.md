@@ -2,7 +2,7 @@
  
  This library is still under development. 
 
-![logo]( https://travis-ci.com/ShatrovOA/Fortran-Logger.svg?branch=master)
+[![Build Status](https://travis-ci.com/ShatrovOA/Fortran-Logger.svg?branch=master)](https://travis-ci.com/ShatrovOA/Fortran-Logger)
 
 ## Main features
 - Free and Open Source Project
