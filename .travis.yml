@@ -7,7 +7,7 @@ addons:
       - ubuntu-toolchain-r-test
     packages:
       - gfortran-9
-      - open-mpi
+      - openmpi-bin
       - python-pip
 
 
