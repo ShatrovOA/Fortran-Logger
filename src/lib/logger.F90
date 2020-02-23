@@ -17,7 +17,7 @@ private
 
   type, public :: fortran_logger
 
-    logical :: print_timestamp = .true.
+    logical :: print_timestamp = .false.
     logical :: use_log_file = .false.
 
     character(len = :), allocatable :: debug_color
@@ -41,6 +41,7 @@ private
     integer(I4P) :: warn_unit = stderr
     integer(I4P) :: null_unit
     integer(I4P) :: logger_unit
+    character(len = :), allocatable :: logger_file
 
     integer(I4P) :: log_level = 0
 
@@ -170,30 +171,33 @@ contains
 
     call self%set_default_values()
 
-    if(present(log_level))    self%log_level = log_level
-    if(present(info_color))   self%info_color   = info_color
-    if(present(error_color))  self%error_color  = error_color
-    if(present(debug_color)) self%debug_color  = debug_color
-    if(present(warn_color))  self%warn_color  = warn_color
-    if(present(info_unit)) self%info_unit = info_unit
-    if(present(error_unit)) self%error_unit = error_unit
-    if(present(debug_unit)) self%debug_unit = debug_unit
-    if(present(warn_unit)) self%warn_unit = warn_unit
-    if(present(print_timestamp)) self%print_timestamp = print_timestamp
+    if(present(log_level))        self%log_level        = log_level
+    if(present(info_color))       self%info_color       = info_color
+    if(present(error_color))      self%error_color      = error_color
+    if(present(debug_color))      self%debug_color      = debug_color
+    if(present(warn_color))       self%warn_color       = warn_color
+    if(present(info_unit))        self%info_unit        = info_unit
+    if(present(error_unit))       self%error_unit       = error_unit
+    if(present(debug_unit))       self%debug_unit       = debug_unit
+    if(present(warn_unit))        self%warn_unit        = warn_unit
+    if(present(print_timestamp))  self%print_timestamp  = print_timestamp
     if(present(timestamp_format)) self%timestamp_format = timestamp_format
-    if(present(log_file)) logger_file = log_file
+    if(present(log_file))         self%logger_file      = log_file
 
     self%c_info_msg  = colorize(info_msg,  color_fg = self%info_color )
     self%c_error_msg = colorize(error_msg, color_fg = self%error_color)
     self%c_debug_msg = colorize(debug_msg, color_fg = self%debug_color)
     self%c_warn_msg  = colorize(warn_msg,  color_fg = self%warn_color )
 
+    ! allocate(self%tmp(0))
+
     call self%open_scratch_file()
 
     call cli%init(ignore_unknown_clas = .true.,   &
                   usage_lun = self%null_unit,     &
                   error_lun  = self%null_unit,    &
-                  version_lun = self%null_unit    )
+                  version_lun = self%null_unit,   &
+                  disable_hv = .true.             )
     call cli%add( switch = '--logger',            &
                   switch_ab = '-log',             &
                   required = .false.,             &
@@ -208,7 +212,9 @@ contains
     call cli%parse(error = self%ierror)
 
     call get_passed_value(cli = cli, switch = '-log',   val = self%log_level, ierror = self%ierror)
+    call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
     call get_passed_value(cli = cli, switch = '-log_file', val = logger_file, ierror = self%ierror)
+    call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
 
     call cli%free()
 
@@ -242,7 +248,7 @@ contains
 
     call MPI_Comm_size(self%comm, self%np, self%ierror)
 
-    allocate(self%tmp(0:self%np - 1))
+    ! allocate(self%tmp(0:self%np - 1))
 
   end subroutine mpi_init
 
@@ -274,6 +280,8 @@ contains
 
     if(cli%is_passed(switch = switch)) then
       call cli%get(switch = switch,   val = val,  error = ierror)
+    else
+      ierror = 0
     endif
 
   end subroutine get_integer
@@ -287,11 +295,13 @@ contains
     character(len = *),               intent(in)    :: switch
     character(len = :), allocatable,  intent(out)   :: val
     integer(I4P),                     intent(out)   :: ierror
-    character(len = 500) :: string
+    character(len = 100) :: string
 
     if(cli%is_passed(switch = switch)) then
       call cli%get(switch = switch,   val = string,  error = ierror)
       val = trim(string)
+    else
+      ierror = 0
     endif
 
   end subroutine get_string
@@ -317,9 +327,13 @@ contains
     class(fortran_logger), intent(inout) :: self
     character(len = :), allocatable :: timestamp
     type(datetime) :: dtime
-    
-    dtime = dtime%now()
-    timestamp = dtime%strftime(self%timestamp_format)
+
+    if(self%print_timestamp) then
+      dtime = dtime%now()
+      timestamp = dtime%strftime(self%timestamp_format)
+    else
+      timestamp = ''
+    endif
 
   end function current_timestamp
 
@@ -394,6 +408,7 @@ contains
     integer(I4P),                 intent(in)    :: err
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
     logical,            optional, intent(in)    :: is_fatal     !< Fatal error. Default is .false.
+
 
     call self%checkerr(message = 'Subroutine '//check_routine//' returned error code: '//trim(str(n=err)),  &
                        err = err, routine = routine, is_fatal = is_fatal                                    )
@@ -1017,8 +1032,11 @@ contains
     if(present(is_fatal)) fatal_error = is_fatal
 
     if(self%log_level >= 1) then
-      call self%write_message(self%error_unit, prefix = self%c_error_msg, message = message, routine = routine, &
-      rank = rank)
+      call self%write_message(self%error_unit, prefix = self%c_error_msg, message = message, routine = routine  &
+#ifdef _MPI
+                                                                                              , rank = rank
+#endif                                                                              
+                                                                                                        )
       if(fatal_error) then
         call self%write_message(self%error_unit, prefix = self%c_error_msg, routine = routine,      &
                                 message = 'This error is fatal. Program will stop executing now...' )
@@ -1032,7 +1050,11 @@ contains
   end subroutine error
 
 !-------------------------------------------------------------------------------------
-  subroutine write_message(self, unit, prefix, message, routine, rank)
+  subroutine write_message(self, unit, prefix, message, routine                      &
+#ifdef _MPI
+                                                                , rank
+#endif
+                                                                                     )
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
@@ -1041,14 +1063,13 @@ contains
     character(len = *),           intent(in)    :: prefix
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
+#ifdef _MPI
     integer(I4P),       optional, intent(in)    :: rank
+#endif
     character(len = :), allocatable :: timestamp, subrout, msg
 
-    if(self%print_timestamp) then
-      timestamp = self%current_timestamp()
-    else
-      timestamp = ''
-    endif
+
+    msg = self%current_timestamp()
 
     if(present(routine)) then
       subrout = '['//routine//']'
@@ -1057,7 +1078,9 @@ contains
     endif
 
     msg = message
+#ifdef _MPI
     if(present(rank)) msg = msg//' on rank '//trim(str(n = rank, no_sign = .true.))
+#endif
 
     write(unit, '(a)') timestamp//'  '//prefix//' -- '//subrout//' '//msg
     

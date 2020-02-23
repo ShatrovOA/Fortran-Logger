@@ -1,42 +1,28 @@
 program test1
 use fortran_logger_m, only : fortran_logger
-use mpi_f08
+use testing_subroutines
 use penf
 use iso_fortran_env, only : error_unit, output_unit
   implicit none
   type(fortran_logger) :: logger
-  integer(I4P) :: rank, stdout, stderr, ierror
-  integer(I4P), allocatable :: ar(:)
-
-  call MPI_Init()
-
-  ierror = 0
-
-  ! call MPI_Comm_rank(MPI_COMM_WORLD, rank)
-
-  ! if(rank == 0) then
-  !   stderr = error_unit
-  !   stdout = output_unit
-  !   ! allocate(ar(32))
-  ! else
-  !   open(newunit = stderr, status = 'scratch', action = 'write')
-  !   open(newunit = stdout, status = 'scratch', action = 'write')
-  ! endif
-
+  integer(I4P) :: error
 
   call logger%initialize(log_level = 4, print_timestamp = .true.)
 
-  call logger%mpi_init()
+  call debug_info(logger)
 
-  call logger%debug(routine = 'test_routine 1', message = 'enter')
 
-  call logger%info(routine = 'test_routine 1', message = 'doing some stuff')
-
-  call logger%warn(routine = 'test_routine 1', message = 'you cant do that')
+  ! call logger%warn(routine = 'test_routine 1', message = 'you cant do that')
 
   ! call logger%error(routine = 'test_routine 1', message = 'error happened', is_fatal = .true.)
-  ierror = -1
-  call logger%check_error(check_routine = 'external subroutine', err = ierror, is_fatal = .true.)
+
+  ! Calling external subroutine, which generates non-zero error code
+  call errored_subroutine(error)
+  call logger%check_error(check_routine = 'errored_subroutine', err = error)
+
+  ! Let's call the same subroutine, but this time non-zero code will be fatal
+  call errored_subroutine(error)
+  call logger%check_error(check_routine = 'fatal_errored_subroutine', err = error, is_fatal = .true.)
 
   ! call logger%check_alloc(routine='test_routine 1', check = ar, check_name = 'allocate check arrays')
 

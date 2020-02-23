@@ -8,6 +8,8 @@
 - Free and Open Source Project
 - MPI Support
 - Fortran 2008+ standard compliant
+- Support of 4 logging levels
+- CLI Support for runtime change of logging level
 
 ## Example of usage
 
