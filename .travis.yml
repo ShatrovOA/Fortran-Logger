@@ -3,6 +3,8 @@ sudo: false
 
 addons:
   apt:
+    sources:
+      - ubuntu-toolchain-r-test
     packages:
       - gfortran-9
       - open-mpi
