@@ -1,16 +1,12 @@
-[submodule "src/third_party/PENF"]
-  path = src/third_party/PENF
-  url = https://github.com/szaghi/PENF
-  branch = master
-[submodule "src/third_party/FACE"]
-  path = src/third_party/FACE
-  url = https://github.com/szaghi/FACE
-  branch = master
-[submodule "src/third_party/FLAP"]
-  path = src/third_party/FLAP
-  url = https://github.com/szaghi/FLAP
-  branch = master
-[submodule "src/third_party/datetime-fortran"]
-  path = src/third_party/datetime-fortran
-  url = https://github.com/wavebitscientific/datetime-fortran
-  branch = master
+[submodule "PENF"]
+  	path = src/third_party/PENF
+  	url = https://github.com/szaghi/PENF
+[submodule "FACE"]
+	path = src/third_party/FACE
+	url = https://github.com/szaghi/FACE
+[submodule "FLAP"]
+	path = src/third_party/FLAP
+	url = https://github.com/szaghi/FLAP
+[submodule "datetime-fortran"]
+	path = src/third_party/datetime-fortran
+	url = https://github.com/wavebitscientific/datetime-fortran
