@@ -10,8 +10,15 @@ addons:
       - openmpi-bin
       - python-pip
 
+install:
+  - export FC=/usr/bin/gfortran-9
+  - gfortran --version
+  - pip install --user --upgrade FoBiS.py
 
-# script:
+
+script:
+  - FoBiS.py build -mode static-gnu
+
 #   - gfortran -fprofile-arcs -ftest-coverage -O0 hello.f90 -o hello
 #   - ./hello
 
