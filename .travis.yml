@@ -1,5 +1,8 @@
-language: c
-sudo: false
+language: python
+
+dist: bionic
+python:
+   - 3.8
 
 cache:
   apt: true
@@ -16,6 +19,7 @@ addons:
       - gfortran-9
       - openmpi-bin
       - python3-pip
+      - python3-setuptools
 
 install:
   - |
@@ -27,7 +31,13 @@ install:
   - ln -fs /usr/bin/gfortran-9 "$HOME/.local/bin/gfortran" && gfortran --version
   - ls -l /usr/bin/gfortran-9
   - ln -fs /usr/bin/gcov-9 "$HOME/.local/bin/gcov" && gcov --version
-  - pip3 install --user --upgrade FoBiS.py
+  - sudo -H pip3 install --upgrade pygooglechart
+  - sudo -H pip3 install --upgrade graphviz
+  - sudo -H pip3 install --upgrade future
+  - sudo -H pip3 install --upgrade configparser
+  - sudo -H pip3 install --upgrade markdown-checklist 
+  - sudo -H pip3 install --upgrade ford
+  - sudo -H pip3 install --upgrade FoBiS.py && FoBiS.py --version
 
 
 script:
