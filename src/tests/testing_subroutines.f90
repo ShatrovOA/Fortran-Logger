@@ -8,20 +8,20 @@ contains
   subroutine debug_info(logger)
     class(fortran_logger),  intent(inout) :: logger
 
-    call logger%debug(routine = 'debug_info', message = 'Entering subroutine')
+    call logger%debug(message = 'Entering subroutine', routine = 'debug_info')
 
     ! Do stuff
-    call logger%info(routine = 'debug_info', message = 'Doing stuff')
+    call logger%info(message = 'Doing stuff', routine = 'debug_info')
     ! Do stuff
 
-    call logger%debug(routine = 'debug_info', message = 'Exiting subroutine')
+    call logger%debug(message = 'Exiting subroutine', routine = 'debug_info')
 
   end subroutine debug_info
 
   subroutine errored_subroutine(error)
     integer(I4P), intent(out) :: error
 
-    error = 1
+    error = -1
 
   end subroutine errored_subroutine
 

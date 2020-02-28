@@ -1,3 +1,6 @@
+! gfortran  -o test  src/lib/logger.F90 src/tests/testing_subroutines.f90 src/tests/test1.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
+! mpifort -D_MPI -o test  src/lib/logger.F90 src/tests/testing_subroutines.f90 src/tests/test1_mpi.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
+
 module fortran_logger_m
 use iso_fortran_env, only: stderr => error_unit, stdout => output_unit
 use penf
@@ -10,53 +13,45 @@ use mpi_f08, only : MPI_Comm, MPI_Comm_size, MPI_Allgather, MPI_INTEGER, MPI_COM
 implicit none
 private
 
-  character(len = 5), parameter :: info_msg  = 'INFO '
-  character(len = 5), parameter :: error_msg = 'ERROR'
-  character(len = 5), parameter :: warn_msg  = 'WARN '
-  character(len = 5), parameter :: debug_msg = 'DEBUG'
+  integer(I4P), parameter :: error_level  = 1
+  integer(I4P), parameter :: warn_level   = 2
+  integer(I4P), parameter :: info_level   = 3
+  integer(I4P), parameter :: debug_level  = 4
+
+  type :: str_handle
+    character(len = :), allocatable :: msg
+  end type str_handle
 
   type, public :: fortran_logger
-
+    integer(I4P) :: log_level = 0
     logical :: print_timestamp = .false.
     logical :: use_log_file = .false.
+    logical :: is_mpi_init = .false.
+    logical :: is_setup = .false.
 
-    character(len = :), allocatable :: debug_color
-    character(len = :), allocatable :: info_color
-    character(len = :), allocatable :: warn_color
-    character(len = :), allocatable :: error_color
-    
+    type(str_handle) :: pref(4)
+    type(str_handle) :: c_pref(4)
+    type(str_handle) :: colors(4)
     character(len = :), allocatable :: log_file
-
-    character(len = :), allocatable :: c_info_msg
-    character(len = :), allocatable :: c_error_msg
-    character(len = :), allocatable :: c_warn_msg
-    character(len = :), allocatable :: c_debug_msg
-
     character(len = :), allocatable :: timestamp_format
 
-
-    integer(I4P) :: debug_unit = stdout
-    integer(I4P) :: info_unit = stdout
-    integer(I4P) :: error_unit  = stderr
-    integer(I4P) :: warn_unit = stderr
+    integer(I4P) :: out_units(4) = [stderr, stderr, stdout, stdout]
+    integer(I4P) :: n_sim_units = 1
+    integer(I4P) :: sim_units(2)
     integer(I4P) :: null_unit
     integer(I4P) :: logger_unit
-    character(len = :), allocatable :: logger_file
-
-    integer(I4P) :: log_level = 0
-
+    integer(I4P) :: rank = 0
 #ifdef _MPI
     integer(I4P) :: np
     integer(I4P), allocatable :: tmp(:)
     type(MPI_Comm) :: comm
 #endif
-
     integer(I4P) :: ierror = 0
   contains
     private
     procedure, pass(self),  public :: initialize
 #ifdef _MPI
-    procedure, pass(self),  public :: mpi_init
+    ! procedure, pass(self),  public :: mpi_init
     procedure, pass(self) :: gather
 #endif
     procedure, pass(self),  public :: debug
@@ -134,6 +129,7 @@ private
     procedure, pass(self) :: open_scratch_file
     procedure, pass(self) :: close_scratch_file
     procedure, pass(self) :: write_message
+    procedure, pass(self) :: setup
     procedure, pass(self) :: checkerr
     procedure, pass(self) :: current_timestamp
   end type fortran_logger
@@ -147,49 +143,63 @@ contains
 
 !-------------------------------------------------------------------------------------
   subroutine initialize(self, log_level,                                             &
-                        info_color, error_color, debug_color, warn_color,            &
-                        info_unit, error_unit, debug_unit, warn_unit,                &
+                        error_color, warn_color, info_color, debug_color,            &
+                        error_unit, warn_unit, info_unit, debug_unit,                &
                         print_timestamp, timestamp_format, log_file                  )
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
     integer(I4P),       optional, intent(in)    :: log_level
-    character(len = *), optional, intent(in)    :: info_color
     character(len = *), optional, intent(in)    :: error_color
-    character(len = *), optional, intent(in)    :: debug_color
     character(len = *), optional, intent(in)    :: warn_color
-    integer(I4P),       optional, intent(in)    :: info_unit
+    character(len = *), optional, intent(in)    :: info_color
+    character(len = *), optional, intent(in)    :: debug_color
     integer(I4P),       optional, intent(in)    :: error_unit
-    integer(I4P),       optional, intent(in)    :: debug_unit
     integer(I4P),       optional, intent(in)    :: warn_unit
+    integer(I4P),       optional, intent(in)    :: info_unit
+    integer(I4P),       optional, intent(in)    :: debug_unit
     logical,            optional, intent(in)    :: print_timestamp
     character(len = *), optional, intent(in)    :: timestamp_format
-    character(len = *), optional, intent(in)    :: log_file    
+    character(len = *), optional, intent(in)    :: log_file
     type(command_line_interface)    :: cli !< CLI
     character(len = :), allocatable :: logger_file
+    integer(I4P) :: i
 
     call self%set_default_values()
 
+    self%pref(error_level)%msg  = 'ERROR'
+    self%pref(warn_level)%msg   = 'WARN '
+    self%pref(info_level)%msg   = 'INFO '
+    self%pref(debug_level)%msg  = 'DEBUG'
+
     if(present(log_level))        self%log_level        = log_level
-    if(present(info_color))       self%info_color       = info_color
-    if(present(error_color))      self%error_color      = error_color
-    if(present(debug_color))      self%debug_color      = debug_color
-    if(present(warn_color))       self%warn_color       = warn_color
-    if(present(info_unit))        self%info_unit        = info_unit
-    if(present(error_unit))       self%error_unit       = error_unit
-    if(present(debug_unit))       self%debug_unit       = debug_unit
-    if(present(warn_unit))        self%warn_unit        = warn_unit
+    if(present(error_color))      self%colors(1)%msg    = error_color
+    if(present(warn_color))       self%colors(2)%msg    = warn_color
+    if(present(info_color))       self%colors(3)%msg    = info_color
+    if(present(debug_color))      self%colors(4)%msg    = debug_color
+    if(present(error_unit))       self%out_units(1)     = error_unit
+    if(present(warn_unit))        self%out_units(2)     = warn_unit
+    if(present(info_unit))        self%out_units(3)     = info_unit
+    if(present(debug_unit))       self%out_units(4)     = debug_unit
     if(present(print_timestamp))  self%print_timestamp  = print_timestamp
     if(present(timestamp_format)) self%timestamp_format = timestamp_format
-    if(present(log_file))         self%logger_file      = log_file
+    if(present(log_file))         self%log_file         = log_file
 
-    self%c_info_msg  = colorize(info_msg,  color_fg = self%info_color )
-    self%c_error_msg = colorize(error_msg, color_fg = self%error_color)
-    self%c_debug_msg = colorize(debug_msg, color_fg = self%debug_color)
-    self%c_warn_msg  = colorize(warn_msg,  color_fg = self%warn_color )
+    do concurrent(i = 1:4)
+      self%c_pref(i)%msg  = colorize(string = self%pref(i)%msg , color_fg = self%colors(i)%msg )
+    end do
 
-    ! allocate(self%tmp(0))
+#ifdef _MPI
+    self%comm = MPI_COMM_WORLD
+
+    call MPI_Comm_size(self%comm, self%np, self%ierror)
+
+    call MPI_Comm_rank(self%comm, self%rank, self%ierror)
+
+    allocate(self%tmp(0:self%np - 1))
+#endif
+
 
     call self%open_scratch_file()
 
@@ -211,62 +221,93 @@ contains
 
     call cli%parse(error = self%ierror)
 
+    call get_passed_value(cli = cli, switch = '-log_file', val = self%log_file, ierror = self%ierror)
+    if(allocated(self%log_file)) then
+      self%use_log_file = .true.
+      self%n_sim_units = 2
+    endif
+    call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
+
     call get_passed_value(cli = cli, switch = '-log',   val = self%log_level, ierror = self%ierror)
     call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
-    call get_passed_value(cli = cli, switch = '-log_file', val = logger_file, ierror = self%ierror)
-    call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
+    if(self%log_level > 4) then
+      call self%warn(message = 'Value of log_level '//trim(str(n = self%log_level,no_sign = .true.))//' > 4 = debug')
+      call self%warn(message = 'Assuming log_level = 4')
+      self%log_level = 4
+    endif
+    if(self%log_level < 0) then
+      i = self%log_level
+      self%log_level = warn_level
+      call self%warn(message = 'Value of log_level '//trim(str(n = i))//' < 0')
+      call self%warn(message = 'Assuming log_level = 0')
+      self%log_level = 0
+    endif
 
     call cli%free()
-
-    call self%close_scratch_file()
-
-    if(allocated(logger_file)) then
-      self%use_log_file = .true.
-      open(newunit = self%logger_unit,            &
-            file = logger_file,                   &
-            action = 'write',                     &
-            status='replace',                     &
-            iostat = self%ierror                  )
-    endif
 
   end subroutine initialize
 
 #ifdef _MPI
-!-------------------------------------------------------------------------------------
-  subroutine mpi_init(self, comm)
-!-------------------------------------------------------------------------------------
-!< 
-!-------------------------------------------------------------------------------------
-    class(fortran_logger),    intent(inout) :: self
-    type(MPI_Comm), optional, intent(in)    :: comm
+! !-------------------------------------------------------------------------------------
+!   subroutine mpi_init(self, comm)
+! !-------------------------------------------------------------------------------------
+! !< Initialize MPI structure
+! !-------------------------------------------------------------------------------------
+!     class(fortran_logger),    intent(inout) :: self
+!     type(MPI_Comm), optional, intent(in)    :: comm
 
-    if(present(comm)) then
-      self%comm = comm
-    else
-      self%comm = MPI_COMM_WORLD
-    endif
+!     if(present(comm)) then
+!       self%comm = comm
+!     else
+!       self%comm = MPI_COMM_WORLD
+!     endif
 
-    call MPI_Comm_size(self%comm, self%np, self%ierror)
+!     call MPI_Comm_size(self%comm, self%np, self%ierror)
 
-    ! allocate(self%tmp(0:self%np - 1))
+!     call MPI_Comm_rank(self%comm, self%rank, self%ierror)
 
-  end subroutine mpi_init
+!     allocate(self%tmp(0:self%np - 1))
+
+!   end subroutine mpi_init
 
 !-------------------------------------------------------------------------------------
   subroutine gather(self, err, pos)
 !-------------------------------------------------------------------------------------
-!< 
+!< Gather all error codes, find nonzero error code and rank
 !-------------------------------------------------------------------------------------
     class(fortran_logger),  intent(inout) :: self
     integer(I4P),           intent(inout) :: err
     integer(I4P),           intent(out)   :: pos
 
-    call MPI_Allgather(err, 1, MPI_INTEGER, self%tmp, 1, MPI_INTEGER, self%comm, self%ierror)
+    call MPI_Allgather(abs(err), 1, MPI_INTEGER, self%tmp, 1, MPI_INTEGER, self%comm, self%ierror)
     err = maxval(self%tmp, dim = 1)
     pos = maxloc(self%tmp, dim = 1) - 1
     
   end subroutine gather
 #endif
+
+  subroutine setup(self)
+    class(fortran_logger),  intent(inout) :: self
+
+    if(self%use_log_file) then
+      if(self%rank == 0) then
+        open( newunit = self%logger_unit,           &
+              file = self%log_file,                 &
+              action = 'write',                     &
+              status='replace',                     &
+              iostat = self%ierror                  )
+      endif
+      self%sim_units(2) = self%logger_unit
+    endif
+
+    if(self%rank /= 0) then
+      self%out_units(:) = self%null_unit
+      self%logger_unit = self%null_unit
+    endif
+
+    self%is_setup = .true.
+
+  end subroutine setup
 
 !-------------------------------------------------------------------------------------
   subroutine get_integer(cli, switch, val, ierror)
@@ -314,8 +355,13 @@ contains
     class(fortran_logger),  intent(inout) :: self
 
     ! call self%close_scratch_file()
+    if(self%is_setup) then
+      if(self%use_log_file .and. self%rank == 0) close(self%logger_unit)
+      call self%close_scratch_file()
+    endif
+    call self%set_default_values()
 
-    if(self%use_log_file) close(self%logger_unit)
+    self%is_setup = .false.
 
   end subroutine finalize
 
@@ -330,7 +376,7 @@ contains
 
     if(self%print_timestamp) then
       dtime = dtime%now()
-      timestamp = dtime%strftime(self%timestamp_format)
+      timestamp = dtime%strftime(self%timestamp_format)//'  '
     else
       timestamp = ''
     endif
@@ -344,16 +390,17 @@ contains
 !-------------------------------------------------------------------------------------
     class(fortran_logger), intent(inout) :: self
 
-    self%info_color   = 'GREEN'
-    self%error_color  = 'RED_INTENSE'
-    self%debug_color  = 'CYAN'
-    self%warn_color  = 'YELLOW'
+    self%colors(1)%msg  = 'RED_INTENSE'
+    self%colors(2)%msg  = 'YELLOW'
+    self%colors(3)%msg  = 'GREEN'
+    self%colors(4)%msg  = 'CYAN'
+
     self%timestamp_format = '%c'
 
   end subroutine set_default_values
 
 !-------------------------------------------------------------------------------------
-  subroutine debug(self, routine, message)
+  subroutine debug(self, message, routine)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
@@ -361,15 +408,15 @@ contains
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
 
-    if(self%log_level == 4) then
-      call self%write_message(self%debug_unit, prefix = self%c_debug_msg, message = message, routine = routine)
-      if(self%use_log_file)  call self%write_message(self%logger_unit, prefix = debug_msg, message = message)
+    if(self%log_level == debug_level) then
+      if(.not. self%is_setup) call self%setup()
+      call self%write_message(level = debug_level, message = message, routine = routine)
     endif
   
   end subroutine debug
 
 !-------------------------------------------------------------------------------------
-  subroutine info(self, routine, message)
+  subroutine info(self, message, routine)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
@@ -377,14 +424,15 @@ contains
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
 
-    if(self%log_level >= 3) then
-      call self%write_message(self%info_unit, prefix = self%c_info_msg, message = message, routine = routine)
+    if(self%log_level >= info_level) then
+      if(.not. self%is_setup) call self%setup()
+      call self%write_message(level = info_level, message = message, routine = routine)
     endif
   
   end subroutine info
 
 !-------------------------------------------------------------------------------------
-  subroutine warn(self, routine, message)
+  subroutine warn(self, message, routine)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
@@ -392,8 +440,9 @@ contains
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
 
-    if(self%log_level >= 2) then
-      call self%write_message(self%error_unit, prefix = self%c_warn_msg, message = message, routine = routine)
+    if(self%log_level >= warn_level) then
+      if(.not. self%is_setup) call self%setup()
+      call self%write_message(level = warn_level, message = message, routine = routine)
     endif
   
   end subroutine warn
@@ -406,8 +455,8 @@ contains
     class(fortran_logger),        intent(inout) :: self
     character(len = *),           intent(in)    :: check_routine
     integer(I4P),                 intent(in)    :: err
-    character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    logical,            optional, intent(in)    :: is_fatal     !< Fatal error. Default is .false.
+    character(len = *), optional, intent(in)    :: routine        !< Tracing routine
+    logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
 
 
     call self%checkerr(message = 'Subroutine '//check_routine//' returned error code: '//trim(str(n=err)),  &
@@ -432,6 +481,8 @@ contains
 #ifdef _MPI
     call self%gather(ierr, pos)
 #endif
+
+    if(.not. self%is_setup) call self%setup()
 
     if(ierr /= 0) then
       call self%error(message = message, routine = routine, err = ierr, rank = pos, is_fatal = is_fatal)
@@ -1028,17 +1079,18 @@ contains
     logical,            optional, intent(in)    :: is_fatal !< Fatal error. Default is .false.
     logical :: fatal_error
 
-    fatal_error = .false.
-    if(present(is_fatal)) fatal_error = is_fatal
+    if(self%log_level >= error_level) then
+      if(.not. self%is_setup) call self%setup()
+      fatal_error = .false.
+      if(present(is_fatal)) fatal_error = is_fatal
+      call self%write_message(level = error_level, message = message, routine = routine   &
 
-    if(self%log_level >= 1) then
-      call self%write_message(self%error_unit, prefix = self%c_error_msg, message = message, routine = routine  &
 #ifdef _MPI
-                                                                                              , rank = rank
+                                                                        , rank = rank     &
 #endif                                                                              
-                                                                                                        )
+                                                                                          )
       if(fatal_error) then
-        call self%write_message(self%error_unit, prefix = self%c_error_msg, routine = routine,      &
+        call self%write_message(level = error_level, routine = routine,                             &
                                 message = 'This error is fatal. Program will stop executing now...' )
 #ifdef _MPI
         call MPI_Finalize(self%ierror)
@@ -1050,39 +1102,46 @@ contains
   end subroutine error
 
 !-------------------------------------------------------------------------------------
-  subroutine write_message(self, unit, prefix, message, routine                      &
+  subroutine write_message(self, level, message, routine                      &
+
 #ifdef _MPI
-                                                                , rank
+                                                                , rank               &
 #endif
                                                                                      )
 !-------------------------------------------------------------------------------------
-!< 
+!< Printer
 !-------------------------------------------------------------------------------------
     class(fortran_logger),        intent(inout) :: self
-    integer(I4P),                 intent(in)    :: unit
-    character(len = *),           intent(in)    :: prefix
+    integer(I4P),                 intent(in)    :: level
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
 #ifdef _MPI
     integer(I4P),       optional, intent(in)    :: rank
 #endif
-    character(len = :), allocatable :: timestamp, subrout, msg
+    type(str_handle) :: msg(2)
+    integer(I4P) :: i
+    character(len = :), allocatable :: tmp
 
+    self%sim_units(1) = self%out_units(level)
 
-    msg = self%current_timestamp()
+    tmp = ''
 
     if(present(routine)) then
-      subrout = '['//routine//']'
-    else
-      subrout = ''
+      tmp = '['//routine//'] '
     endif
 
-    msg = message
+    tmp = tmp//message
+
 #ifdef _MPI
-    if(present(rank)) msg = msg//' on rank '//trim(str(n = rank, no_sign = .true.))
+    if(present(rank)) tmp = tmp//' on rank '//trim(str(n = rank, no_sign = .true.))
 #endif
 
-    write(unit, '(a)') timestamp//'  '//prefix//' -- '//subrout//' '//msg
+    msg(1)%msg = self%current_timestamp()//self%c_pref(level)%msg//' -- '//tmp
+    msg(2)%msg = self%current_timestamp()//self%pref(level)%msg//' -- '//tmp
+
+    do i = 1, self%n_sim_units
+      write(self%sim_units(i), '(a)') msg(i)%msg
+    end do
     
   end subroutine write_message
 
