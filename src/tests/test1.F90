@@ -1,10 +1,10 @@
 program test1
-use fortran_logger_m, only : fortran_logger
+use fortran_logger
 use testing_subroutines
 use penf
 use iso_fortran_env, only : error_unit, output_unit
 implicit none
-  type(fortran_logger) :: logger
+  type(fortran_logger_t) :: logger
   integer(I4P) :: error
 
   call logger%initialize(log_level = 4, print_timestamp = .true.)

@@ -1,12 +1,12 @@
 module testing_subroutines
-use fortran_logger_m
+use fortran_logger
 use penf
 implicit none
 
 contains
 
   subroutine debug_info(logger)
-    class(fortran_logger),  intent(inout) :: logger
+    class(fortran_logger_t),  intent(inout) :: logger
 
     call logger%debug(message = 'Entering subroutine', routine = 'debug_info')
 

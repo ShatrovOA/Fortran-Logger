@@ -1,11 +1,11 @@
 program test1
-use fortran_logger_m, only : fortran_logger
+use fortran_logger
 use testing_subroutines
 use penf
 use mpi_f08
 use iso_fortran_env, only : error_unit, output_unit
 implicit none
-  type(fortran_logger) :: logger
+  type(fortran_logger_t) :: logger
   integer(I4P) :: error
 
   ! MPI_Init must be called before logger%initialize. Otherwise runtime error will occur
