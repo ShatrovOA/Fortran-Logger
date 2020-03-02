@@ -1,5 +1,5 @@
-! gfortran  -o test  src/lib/logger.F90 src/tests/testing_subroutines.f90 src/tests/test1.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
-! mpifort -D_MPI -o test  src/lib/logger.F90 src/tests/testing_subroutines.f90 src/tests/test1_mpi.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
+! gfortran  -o test  src/lib/fortran_logger.F90 src/tests/testing_subroutines.f90 src/tests/test1.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
+! mpifort -D_MPI -o test  src/lib/fortran_logger.F90 src/tests/testing_subroutines.f90 src/tests/test1_mpi.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
 
 module fortran_logger
 use iso_fortran_env, only: stderr => error_unit, stdout => output_unit
@@ -278,10 +278,15 @@ contains
     class(fortran_logger_t),  intent(inout) :: self
     integer(I4P),           intent(inout) :: err
     integer(I4P),           intent(out)   :: pos
+    integer(I4P) :: tmp
 
-    call MPI_Allgather(abs(err), 1, MPI_INTEGER, self%tmp, 1, MPI_INTEGER, self%comm, self%ierror)
-    err = maxval(self%tmp, dim = 1)
+    tmp = abs(err)
+
+    call MPI_Allgather(tmp, 1, MPI_INTEGER, self%tmp, 1, MPI_INTEGER, self%comm, self%ierror)
+
     pos = maxloc(self%tmp, dim = 1) - 1
+
+    call MPI_Bcast(err, 1, MPI_INTEGER, pos, self%comm, self%ierror)
     
   end subroutine gather
 #endif
