@@ -10,3 +10,6 @@
 [submodule "datetime-fortran"]
 	path = src/third_party/datetime-fortran
 	url = https://github.com/wavebitscientific/datetime-fortran
+[submodule "json-fortran"]
+	path = src/third_party/json-fortran
+	url = https://github.com/jacobwilliams/json-fortran

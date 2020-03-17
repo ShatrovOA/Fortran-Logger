@@ -2,14 +2,15 @@
 ! mpifort -D_MPI -o test  src/lib/fortran_logger.F90 src/tests/testing_subroutines.f90 src/tests/test1_mpi.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
 
 module fortran_logger
-use iso_fortran_env, only: stderr => error_unit, stdout => output_unit
-use penf
+use datetime_module, only: datetime
 use face, only : colorize
 use flap
-use datetime_module, only: datetime
+use iso_fortran_env, only: stderr => error_unit, stdout => output_unit
+use json_module
 #ifdef _MPI
 use mpi_f08, only : MPI_Comm, MPI_Comm_size, MPI_Allgather, MPI_INTEGER, MPI_COMM_WORLD
 #endif
+use penf
 implicit none
 private
 
@@ -32,6 +33,7 @@ private
     type(str_handle) :: pref(4)
     type(str_handle) :: c_pref(4)
     type(str_handle) :: colors(4)
+    type(str_handle), allocatable :: json_types(:)
     character(len = :), allocatable :: log_file
     character(len = :), allocatable :: timestamp_format
 
@@ -58,6 +60,7 @@ private
     procedure, pass(self),  public :: info
     procedure, pass(self),  public :: warn
     procedure, pass(self),  public :: check_error
+    procedure, pass(self),  public :: check_json_value
     procedure, pass(self),  public :: error
     procedure, pass(self),  public :: finalize
     generic, public ::  check_alloc =>           &
@@ -149,7 +152,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self
+    class(fortran_logger_t),      intent(inout) :: self               !< Logger
     integer(I4P),       optional, intent(in)    :: log_level
     character(len = *), optional, intent(in)    :: error_color
     character(len = *), optional, intent(in)    :: warn_color
@@ -189,6 +192,16 @@ contains
     do concurrent(i = 1:4)
       self%c_pref(i)%msg  = colorize(string = self%pref(i)%msg , color_fg = self%colors(i)%msg )
     end do
+
+    allocate(self%json_types(0:7))
+    self%json_types(0)%msg = 'Unknown'
+    self%json_types(1)%msg = 'Null'
+    self%json_types(2)%msg = 'Object'
+    self%json_types(3)%msg = 'Array'
+    self%json_types(4)%msg = 'Logical'
+    self%json_types(5)%msg = 'Integer'
+    self%json_types(6)%msg = 'Real'
+    self%json_types(7)%msg = 'String'
 
 #ifdef _MPI
     self%comm = MPI_COMM_WORLD
@@ -275,9 +288,9 @@ contains
 !-------------------------------------------------------------------------------------
 !< Gather all error codes, find nonzero error code and rank
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),  intent(inout) :: self
-    integer(I4P),           intent(inout) :: err
-    integer(I4P),           intent(out)   :: pos
+    class(fortran_logger_t),  intent(inout) :: self   !< Logger
+    integer(I4P),             intent(inout) :: err
+    integer(I4P),             intent(out)   :: pos
     integer(I4P) :: tmp
 
     tmp = abs(err)
@@ -357,13 +370,13 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),  intent(inout) :: self
+    class(fortran_logger_t),  intent(inout) :: self   !< Logger
 
-    ! call self%close_scratch_file()
     if(self%is_setup) then
       if(self%use_log_file .and. self%rank == 0) close(self%logger_unit)
       call self%close_scratch_file()
     endif
+    deallocate(self%json_types)
     call self%set_default_values()
 
     self%is_setup = .false.
@@ -375,8 +388,8 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t), intent(inout) :: self
-    character(len = :), allocatable :: timestamp
+    class(fortran_logger_t), intent(inout) :: self        !< Logger
+    character(len = :),        allocatable :: timestamp
     type(datetime) :: dtime
 
     if(self%print_timestamp) then
@@ -393,7 +406,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t), intent(inout) :: self
+    class(fortran_logger_t), intent(inout) :: self  !< Logger
 
     self%colors(1)%msg  = 'RED_INTENSE'
     self%colors(2)%msg  = 'YELLOW'
@@ -409,7 +422,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self
+    class(fortran_logger_t),      intent(inout) :: self     !< Logger
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
 
@@ -425,7 +438,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self
+    class(fortran_logger_t),      intent(inout) :: self     !< Logger
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
 
@@ -441,7 +454,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self
+    class(fortran_logger_t),      intent(inout) :: self     !< Logger
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
 
@@ -457,7 +470,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     character(len = *),           intent(in)    :: check_routine
     integer(I4P),                 intent(in)    :: err
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -470,11 +483,38 @@ contains
   end subroutine check_error
 
 !-------------------------------------------------------------------------------------
+  subroutine check_json_value(self, json_handle, json_path, expected_type, routine, is_fatal)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
+    class(fortran_logger_t),      intent(inout) :: self             !< Logger
+    class(json_file),             intent(inout) :: json_handle
+    character(len = *),           intent(in)    :: json_path        !< Path to variable
+    integer(I4P),                 intent(in)    :: expected_type    !< Expected variable type
+    character(len = *), optional, intent(in)    :: routine          !< Tracing routine
+    logical,            optional, intent(in)    :: is_fatal         !< Fatal error. Default is .false.
+    character(len = :), allocatable :: error_message
+    integer(I4P) :: recieved_type
+    logical      :: is_value_found
+    
+    call json_handle%info(json_path, found = is_value_found, var_type = recieved_type)
+
+    if(.not. is_value_found) then
+      error_message = 'JSON Path "'//json_path//'"'//" doesn't exist"
+    elseif(expected_type /= recieved_type) then
+      error_message = 'Expected data type is '//colorize(self%json_types(expected_type)%msg, color_fg='cyan')// &
+                      ', but got '//colorize(self%json_types(recieved_type)%msg, color_fg='red')//' instead..'
+    endif
+    if(allocated(error_message)) call self%error(error_message, routine = routine, is_fatal = is_fatal)
+
+  end subroutine check_json_value
+
+!-------------------------------------------------------------------------------------
   subroutine checkerr(self, message, err, routine, is_fatal)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self
+    class(fortran_logger_t),      intent(inout) :: self     !< Logger
     character(len = *),           intent(in)    :: message
     integer(I4P),                 intent(in)    :: err
     character(len = *), optional, intent(in)    :: routine  !< Tracing routine
@@ -500,7 +540,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     complex(R8P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -518,7 +558,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     complex(R4P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -536,7 +576,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     real(R8P),       allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -554,7 +594,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     real(R4P),       allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -572,7 +612,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I8P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -590,7 +630,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I4P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -608,7 +648,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I2P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -626,7 +666,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I1P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -644,7 +684,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     real(R8P),       allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -662,7 +702,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     real(R4P),       allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -680,7 +720,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     complex(R8P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -698,7 +738,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     complex(R4P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -716,7 +756,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I8P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -734,7 +774,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I4P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -752,7 +792,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I2P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -770,7 +810,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I1P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -788,7 +828,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     real(R8P),       allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -806,7 +846,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     real(R4P),       allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -824,7 +864,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     complex(R8P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -842,7 +882,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     complex(R4P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -860,7 +900,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I8P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -878,7 +918,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I4P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -896,7 +936,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I2P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -914,7 +954,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self         !< Logger
+    class(fortran_logger_t),      intent(inout) :: self         !< Logger
     integer(I1P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
@@ -932,7 +972,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self           !< Logger
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     real(R8P),       allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -950,7 +990,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self           !< Logger
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     real(R4P),       allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -968,7 +1008,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self           !< Logger
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     complex(R8P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -986,7 +1026,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self           !< Logger
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     complex(R4P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -1004,7 +1044,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self           !< Logger
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     integer(I8P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -1022,7 +1062,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self           !< Logger
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     integer(I4P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -1040,7 +1080,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self           !< Logger
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     integer(I2P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -1058,7 +1098,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self           !< Logger
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
     integer(I1P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
@@ -1076,7 +1116,7 @@ contains
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self
+    class(fortran_logger_t),      intent(inout) :: self
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
     integer(I4P),       optional, intent(in)    :: err
@@ -1089,7 +1129,6 @@ contains
       fatal_error = .false.
       if(present(is_fatal)) fatal_error = is_fatal
       call self%write_message(level = error_level, message = message, routine = routine   &
-
 #ifdef _MPI
                                                                         , rank = rank     &
 #endif                                                                              
@@ -1097,6 +1136,7 @@ contains
       if(fatal_error) then
         call self%write_message(level = error_level, routine = routine,                             &
                                 message = 'This error is fatal. Program will stop executing now...' )
+        call self%finalize()
 #ifdef _MPI
         call MPI_Finalize(self%ierror)
 #endif
@@ -1107,16 +1147,15 @@ contains
   end subroutine error
 
 !-------------------------------------------------------------------------------------
-  subroutine write_message(self, level, message, routine                      &
-
+  subroutine write_message(self, level, message, routine        &
 #ifdef _MPI
-                                                                , rank               &
+                                                        , rank  &
 #endif
-                                                                                     )
+                                                                )
 !-------------------------------------------------------------------------------------
 !< Printer
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),        intent(inout) :: self
+    class(fortran_logger_t),      intent(inout) :: self
     integer(I4P),                 intent(in)    :: level
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
