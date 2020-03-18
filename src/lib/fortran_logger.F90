@@ -1,6 +1,3 @@
-! gfortran  -o test  src/lib/fortran_logger.F90 src/tests/testing_subroutines.f90 src/tests/test1.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
-! mpifort -D_MPI -o test  src/lib/fortran_logger.F90 src/tests/testing_subroutines.f90 src/tests/test1_mpi.F90 -I /Users/os250016/MyProjects/FOSS/FOSS/include -L /Users/os250016/MyProjects/FOSS/FOSS/lib -lpenf -lface -lflap -ldatetime -J .
-
 module fortran_logger
 use datetime_module, only: datetime
 use face, only : colorize
@@ -8,7 +5,7 @@ use flap
 use iso_fortran_env, only: stderr => error_unit, stdout => output_unit
 use json_module
 #ifdef _MPI
-use mpi_f08, only : MPI_Comm, MPI_Comm_size, MPI_Allgather, MPI_INTEGER, MPI_COMM_WORLD
+use mpi_f08
 #endif
 use penf
 implicit none
@@ -43,6 +40,7 @@ private
     integer(I4P) :: null_unit
     integer(I4P) :: logger_unit
     integer(I4P) :: rank = 0
+    integer(I4P) :: printing_rank = 0
 #ifdef _MPI
     integer(I4P) :: np
     integer(I4P), allocatable :: tmp(:)
@@ -54,6 +52,7 @@ private
     procedure, pass(self),  public :: initialize
 #ifdef _MPI
     ! procedure, pass(self),  public :: mpi_init
+    procedure, pass(self),  public :: set_printing_rank
     procedure, pass(self) :: gather
 #endif
     procedure, pass(self),  public :: debug
@@ -63,6 +62,8 @@ private
     procedure, pass(self),  public :: check_json_value
     procedure, pass(self),  public :: error
     procedure, pass(self),  public :: finalize
+    procedure, pass(self),  public :: check_directory
+    procedure, pass(self),  public :: check_file
     generic, public ::  check_alloc =>           &
                         check_alloc_rank1_cR8P,  &
                         check_alloc_rank1_cR4P,  &
@@ -166,8 +167,7 @@ contains
     character(len = *), optional, intent(in)    :: timestamp_format
     character(len = *), optional, intent(in)    :: log_file
     type(command_line_interface)    :: cli !< CLI
-    character(len = :), allocatable :: logger_file
-    integer(I4P) :: i
+    integer(I4P) :: i, tmp
 
     call self%set_default_values()
 
@@ -221,8 +221,8 @@ contains
                   error_lun  = self%null_unit,    &
                   version_lun = self%null_unit,   &
                   disable_hv = .true.             )
-    call cli%add( switch = '--logger',            &
-                  switch_ab = '-log',             &
+    call cli%add( switch = '--logger_level',      &
+                  switch_ab = '-log_lev',         &
                   required = .false.,             &
                   def = '0',                      &
                   act='store'                     )
@@ -241,17 +241,17 @@ contains
     endif
     call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
 
-    call get_passed_value(cli = cli, switch = '-log',   val = self%log_level, ierror = self%ierror)
+    call get_passed_value(cli = cli, switch = '-log_lev',   val = self%log_level, ierror = self%ierror)
     call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
     if(self%log_level > 4) then
-      call self%warn(message = 'Value of log_level '//trim(str(n = self%log_level,no_sign = .true.))//' > 4 = debug')
+      call self%warn(message = 'Value of passed log_level = '//trim(str(n = self%log_level,no_sign = .true.))//' > 4 = debug')
       call self%warn(message = 'Assuming log_level = 4')
       self%log_level = 4
     endif
     if(self%log_level < 0) then
-      i = self%log_level
+      tmp = self%log_level
       self%log_level = warn_level
-      call self%warn(message = 'Value of log_level '//trim(str(n = i))//' < 0')
+      call self%warn(message = 'Value of passed log_level = '//trim(str(n = tmp))//' < 0')
       call self%warn(message = 'Assuming log_level = 0')
       self%log_level = 0
     endif
@@ -283,6 +283,31 @@ contains
 
 !   end subroutine mpi_init
 
+  subroutine set_printing_rank(self, rank)
+    class(fortran_logger_t),  intent(inout) :: self   !< Logger
+    integer(I4P),             intent(in)    :: rank
+    
+    if(rank > self%np - 1 .or. rank < 0) call self%error('Wrong rank provided', routine = 'set_printing_rank', is_fatal = .true.)
+
+    if(self%rank == self%printing_rank) then
+      call MPI_Send(self%out_units, 4, MPI_INTEGER, rank, 0, self%comm, self%ierror)
+      self%out_units(:) = self%null_unit
+      if(self%use_log_file) then
+        call MPI_Send(self%logger_unit, 1, MPI_INTEGER, rank, 0, self%comm, self%ierror)
+        self%logger_unit = self%null_unit
+      endif
+    endif
+
+    if(self%rank == rank) then
+      call MPI_Recv(self%out_units, 4, MPI_INTEGER, self%printing_rank, 0, self%comm, MPI_STATUS_IGNORE, self%ierror)
+      if(self%use_log_file) then
+        call MPI_Recv(self%logger_unit, 1, MPI_INTEGER, self%printing_rank, 0, self%comm, MPI_STATUS_IGNORE, self%ierror)
+      endif
+    endif
+    self%printing_rank = rank
+  
+  end subroutine set_printing_rank
+
 !-------------------------------------------------------------------------------------
   subroutine gather(self, err, pos)
 !-------------------------------------------------------------------------------------
@@ -308,17 +333,15 @@ contains
     class(fortran_logger_t),  intent(inout) :: self
 
     if(self%use_log_file) then
-      if(self%rank == 0) then
-        open( newunit = self%logger_unit,           &
-              file = self%log_file,                 &
-              action = 'write',                     &
-              status='replace',                     &
-              iostat = self%ierror                  )
-      endif
+      open( newunit = self%logger_unit,  &
+            file = self%log_file,        &
+            action = 'write',            &
+            status='replace',            &
+            iostat = self%ierror         )
       self%sim_units(2) = self%logger_unit
     endif
 
-    if(self%rank /= 0) then
+    if(self%rank /= self%printing_rank) then
       self%out_units(:) = self%null_unit
       self%logger_unit = self%null_unit
     endif
@@ -373,10 +396,10 @@ contains
     class(fortran_logger_t),  intent(inout) :: self   !< Logger
 
     if(self%is_setup) then
-      if(self%use_log_file .and. self%rank == 0) close(self%logger_unit)
+      if(self%use_log_file .and. self%rank == self%printing_rank) close(self%logger_unit)
       call self%close_scratch_file()
     endif
-    deallocate(self%json_types)
+    if(allocated(self%json_types)) deallocate(self%json_types)
     call self%set_default_values()
 
     self%is_setup = .false.
@@ -483,7 +506,7 @@ contains
   end subroutine check_error
 
 !-------------------------------------------------------------------------------------
-  subroutine check_json_value(self, json_handle, json_path, expected_type, routine, is_fatal)
+  subroutine check_json_value(self, json_handle, json_path, expected_type, routine, is_fatal, ierror)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
@@ -493,21 +516,77 @@ contains
     integer(I4P),                 intent(in)    :: expected_type    !< Expected variable type
     character(len = *), optional, intent(in)    :: routine          !< Tracing routine
     logical,            optional, intent(in)    :: is_fatal         !< Fatal error. Default is .false.
+    integer(I4P),       optional, intent(out)   :: ierror           !< Error code
     character(len = :), allocatable :: error_message
     integer(I4P) :: recieved_type
     logical      :: is_value_found
+    integer(I4P) :: error_code
+
+    error_code = 0_I4P
     
     call json_handle%info(json_path, found = is_value_found, var_type = recieved_type)
 
     if(.not. is_value_found) then
       error_message = 'JSON Path "'//json_path//'"'//" doesn't exist"
+      error_code = -1
     elseif(expected_type /= recieved_type) then
       error_message = 'Expected data type is '//colorize(self%json_types(expected_type)%msg, color_fg='cyan')// &
                       ', but got '//colorize(self%json_types(recieved_type)%msg, color_fg='red')//' instead..'
+      error_code = -2
     endif
-    if(allocated(error_message)) call self%error(error_message, routine = routine, is_fatal = is_fatal)
+    if(error_code /= 0_I4P) call self%error(error_message, routine = routine, is_fatal = is_fatal)
+
+    if(present(ierror)) ierror = error_code
 
   end subroutine check_json_value
+
+!-------------------------------------------------------------------------------------
+  subroutine check_directory(self, dir_path, is_create, routine, is_fatal)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
+    character(len = *),           intent(in)    :: dir_path       !< Path to directory
+    logical,                      intent(in)    :: is_create      !< Create directory if it doesn't exist
+    character(len = *), optional, intent(in)    :: routine        !< Tracing routine
+    logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
+    logical :: exist
+
+#ifdef __INTEL_COMPILER
+    inquire(directory = dir_path, exist = exist)
+#else
+    inquire(file = dir_path, exist = exist)
+#endif
+
+    if(.not. exist) then
+      if(is_create) then
+        call self%info('Creating directory "'//dir_path//'"', routine = routine)
+        call execute_command_line('mkdir -p '//dir_path)
+      else
+        call self%error('Directory "'//dir_path//'"'//" doesn't exist", routine = routine, is_fatal = is_fatal)
+      endif
+    endif
+
+  end subroutine check_directory
+
+!-------------------------------------------------------------------------------------
+  subroutine check_file(self, file_path, routine, is_fatal)
+!-------------------------------------------------------------------------------------
+!< 
+!-------------------------------------------------------------------------------------
+    class(fortran_logger_t),      intent(inout) :: self           !< Logger
+    character(len = *),           intent(in)    :: file_path      !< Path to directory
+    character(len = *), optional, intent(in)    :: routine        !< Tracing routine
+    logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
+    logical :: exist
+
+    inquire(file = file_path, exist = exist)
+
+    if(.not. exist) then
+      call self%error('File "'//file_path//'"'//" doesn't exist", routine = routine, is_fatal = is_fatal)
+    endif
+
+  end subroutine check_file
 
 !-------------------------------------------------------------------------------------
   subroutine checkerr(self, message, err, routine, is_fatal)
