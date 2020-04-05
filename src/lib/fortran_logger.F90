@@ -291,7 +291,7 @@ contains
     
     if(rank > self%np - 1 .or. rank < 0) call self%error('Wrong rank provided', routine = 'set_printing_rank', is_fatal = .true.)
 
-    if(self%rank == self%printing_rank) then
+    if(self%rank == self%printing_rank .and. rank /= self%printing_rank) then
       call MPI_Send(self%out_units, 4, MPI_INTEGER, rank, 0, self%comm, self%ierror)
       self%out_units(:) = self%null_unit
       if(self%use_log_file) then
@@ -300,7 +300,7 @@ contains
       endif
     endif
 
-    if(self%rank == rank) then
+    if(self%rank == rank .and. rank /= self%printing_rank) then
       call MPI_Recv(self%out_units, 4, MPI_INTEGER, self%printing_rank, 0, self%comm, MPI_STATUS_IGNORE, self%ierror)
       if(self%use_log_file) then
         call MPI_Recv(self%logger_unit, 1, MPI_INTEGER, self%printing_rank, 0, self%comm, MPI_STATUS_IGNORE, self%ierror)
