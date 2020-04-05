@@ -11,23 +11,56 @@
 - Support of 4 logging levels
 - CLI Support for runtime change of logging level
 
-## Example of usage
+## Installation
+The only currently possible way to install library is with [FoBiS.py](https://github.com/szaghi/FoBiS). 
+
+### Supported build modes
+#### Static libraries
+- static-gnu
+- static-gnu-mpi
+- static-gnu-debug
+- static-gnu-mpi-debug
+- static-intel
+- static-intel-mpi
+- static-intel-debug
+- static-intel-mpi-debug
+#### Shared libraries
+- shared-gnu
+- shared-gnu-mpi
+- shared-gnu-debug
+- shared-gnu-mpi-debug
+- shared-intel
+- shared-intel-mpi
+- shared-intel-debug
+- shared-intel-mpi-debug
+
+
+```bash
+git clone https://github.com/ShatrovOA/Fortran-Logger
+cd Fortran-Logger
+FoBiS.py build -mode static-gnu-mpi
+```
+
+## Examples
 
 ```fortran
-use fortran_logger_m, only : fortran_logger
-implicit none
-  type(fortran_logger) :: logger
+use fortran_logger, only : fortran_logger_t
+  type(fortran_logger_t) :: logger
+  integer(I4P) :: error
 
   call logger%initialize(log_level = 4, print_timestamp = .true.)
 
-  call logger%debug(routine = 'test_routine 1', message = 'enter')
+  call debug_info(logger)
 
-  call logger%info(routine = 'test_routine 1', message = 'doing some stuff')
+  ! Calling external subroutine, which generates non-zero error code
+  call errored_subroutine(error)
+  call logger%check_error(check_routine = 'errored_subroutine', err = error)
 
-  call logger%warn(routine = 'test_routine 1', message = "you can't do that")
+  ! Let's call the same subroutine, but this time non-zero code will be fatal
+  call errored_subroutine(error)
+  call logger%check_error(check_routine = 'fatal_errored_subroutine', err = error, is_fatal = .true.)
 
-  ierror = -1
-  call logger%check_error(check_routine = 'external subroutine', err = ierror, is_fatal = .true.)
+  call logger%info(message = 'Finished')
 
   call logger%finalize()
 ```
@@ -36,7 +69,33 @@ This example will produce the following output:
 
 ![Sample Output](./doc/sample_output.png)
 
-## Installation
+```fortran
+use fortran_logger, only : fortran_logger_t
+  type(fortran_logger_t) :: logger
+  integer(I4P) :: error
+
+  ! MPI_Init must be called before logger%initialize. Otherwise runtime error will occur
+  call MPI_Init()
+
+  call logger%initialize(log_level = 4, print_timestamp = .true.)
+
+  call debug_info(logger)
+
+  ! Calling external subroutine, which generates non-zero error code
+  call errored_subroutine(error)
+  call logger%check_error(check_routine = 'errored_subroutine', err = error)
+
+  ! Let's call the same subroutine, but this time non-zero code will be fatal
+  call errored_subroutine(error)
+  call logger%check_error(check_routine = 'fatal_errored_subroutine', err = error, is_fatal = .true.)
+    
+  call logger%info(message = 'Finished')
+    
+  call logger%finalize()
+
+  call MPI_Finalize()
+```
+
+![Sample Output](./doc/sample_output_mpi.png)
 
 
-## API

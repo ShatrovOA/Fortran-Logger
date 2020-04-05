@@ -258,6 +258,8 @@ contains
 
     call cli%free()
 
+    call self%setup()
+
   end subroutine initialize
 
 #ifdef _MPI
@@ -450,7 +452,6 @@ contains
     character(len = *), optional, intent(in)    :: routine
 
     if(self%log_level == debug_level) then
-      if(.not. self%is_setup) call self%setup()
       call self%write_message(level = debug_level, message = message, routine = routine)
     endif
   
@@ -466,7 +467,6 @@ contains
     character(len = *), optional, intent(in)    :: routine
 
     if(self%log_level >= info_level) then
-      if(.not. self%is_setup) call self%setup()
       call self%write_message(level = info_level, message = message, routine = routine)
     endif
   
@@ -482,7 +482,6 @@ contains
     character(len = *), optional, intent(in)    :: routine
 
     if(self%log_level >= warn_level) then
-      if(.not. self%is_setup) call self%setup()
       call self%write_message(level = warn_level, message = message, routine = routine)
     endif
   
@@ -500,8 +499,8 @@ contains
     logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
 
 
-    call self%checkerr(message = 'Subroutine '//check_routine//' returned error code: '//trim(str(n=err)),  &
-                       err = err, routine = routine, is_fatal = is_fatal                                    )
+    call self%checkerr(message = 'Subroutine '//check_routine//' returned',   &
+                       err = err, routine = routine, is_fatal = is_fatal      )
 
   end subroutine check_error
 
@@ -598,18 +597,20 @@ contains
     integer(I4P),                 intent(in)    :: err
     character(len = *), optional, intent(in)    :: routine  !< Tracing routine
     logical,            optional, intent(in)    :: is_fatal !< Fatal error. Default is .false.
-    integer(I4P) :: ierr, pos
+    integer(I4P) :: ierr, rank
 
     ierr = err
 
 #ifdef _MPI
-    call self%gather(ierr, pos)
+    call self%gather(ierr, rank)
 #endif
 
-    if(.not. self%is_setup) call self%setup()
-
     if(ierr /= 0) then
-      call self%error(message = message, routine = routine, err = ierr, rank = pos, is_fatal = is_fatal)
+      call self%error(message = message, routine = routine, err = ierr,         &
+#ifdef _MPI
+                                                            rank = rank,        &
+#endif
+                                                            is_fatal = is_fatal )
     endif
 
   end subroutine checkerr
@@ -1191,7 +1192,12 @@ contains
   end subroutine check_alloc_rank4_I1P
 
 !-------------------------------------------------------------------------------------
-  subroutine error(self, message, routine, err, rank, is_fatal)
+  subroutine error(self, message, routine, err,               &
+
+#ifdef _MPI
+                                                rank,         &
+#endif
+                                                      is_fatal)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
@@ -1199,19 +1205,20 @@ contains
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
     integer(I4P),       optional, intent(in)    :: err
+#ifdef _MPI
     integer(I4P),       optional, intent(in)    :: rank
+#endif
     logical,            optional, intent(in)    :: is_fatal !< Fatal error. Default is .false.
     logical :: fatal_error
 
     if(self%log_level >= error_level) then
-      if(.not. self%is_setup) call self%setup()
       fatal_error = .false.
       if(present(is_fatal)) fatal_error = is_fatal
-      call self%write_message(level = error_level, message = message, routine = routine   &
+      call self%write_message(level = error_level, message = message, routine = routine, err = err  &
 #ifdef _MPI
-                                                                        , rank = rank     &
-#endif                                                                              
-                                                                                          )
+                                                                        , rank = rank               &
+#endif
+                                                                                                    )
       if(fatal_error) then
         call self%write_message(level = error_level, routine = routine,                             &
                                 message = 'This error is fatal. Program will stop executing now...' )
@@ -1226,7 +1233,7 @@ contains
   end subroutine error
 
 !-------------------------------------------------------------------------------------
-  subroutine write_message(self, level, message, routine        &
+  subroutine write_message(self, level, message, routine, err   &
 #ifdef _MPI
                                                         , rank  &
 #endif
@@ -1238,6 +1245,7 @@ contains
     integer(I4P),                 intent(in)    :: level
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
+    integer(I4P),       optional, intent(in)    :: err
 #ifdef _MPI
     integer(I4P),       optional, intent(in)    :: rank
 #endif
@@ -1254,6 +1262,8 @@ contains
     endif
 
     tmp = tmp//message
+
+    if(present(err)) tmp  = tmp//' error code '//trim(str(n = err))
 
 #ifdef _MPI
     if(present(rank)) tmp = tmp//' on rank '//trim(str(n = rank, no_sign = .true.))

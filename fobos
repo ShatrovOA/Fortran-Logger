@@ -1,19 +1,16 @@
 [modes]
-modes = shared-gnu static-gnu tests-gnu
-        shared-gnu-debug static-gnu-debug tests-gnu-debug
-        shared-intel static-intel tests-intel
-        shared-intel-debug static-intel-debug tests-intel-debug
+modes = shared-gnu static-gnu tests-gnu shared-gnu-mpi static-gnu-mpi
+        shared-gnu-debug static-gnu-debug tests-gnu-debug shared-gnu-mpi-debug static-gnu-mpi-debug
+        shared-intel static-intel tests-intel shared-intel-mpi static-intel-mpi 
+        shared-intel-debug static-intel-debug tests-intel-debug shared-intel-mpi-debug static-intel-mpi-debug 
 
 [common-variables]
+$MPI_PREPROCESS = -D_MPI
 $CSHARED_GNU = -cpp -c -fPIC -frealloc-lhs -fno-omit-frame-pointer -DUSE_UCS4 -std=f2018 
-#-D_MPI
 $CSHARED_INT = -cpp -c -fpic -assume realloc_lhs 
-#-D_MPI
 $LSHARED     = -shared
-$CSTATIC_GNU = -cpp -c -frealloc-lhs  -O2 -fbacktrace -pedantic -std=f2008 -fno-omit-frame-pointer -DUSE_UCS4 
-#-D_MPI
+$CSTATIC_GNU = -cpp -c -frealloc-lhs -fbacktrace -pedantic -std=f2008 -fno-omit-frame-pointer -DUSE_UCS4 
 $CSTATIC_INT = -cpp -c -assume realloc_lhs 
-#-D_MPI
 $DEBUG_GNU   = -O0 -g3 -DUSE_UCS4 -std=f2018 -m64 -ffree-line-length-0 -O0 -W -Wall -ggdb -fopt-info -fopt-info-optall-optimized -ftree-vectorize -g -fimplicit-none -Wline-truncation  -Wcharacter-truncation  -Wsurprising  -Waliasing -Wimplicit-interface -Wunused-parameter  -fwhole-file  -fcheck=all  -pedantic  -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -ffpe-summary=none -std=f2008 -Warray-bounds -Wimplicit-procedure -Wunderflow -Wuninitialized -fimplicit-none -fbacktrace -fdump-core -finit-real=nan
 $DEBUG_INT   = -O0 -check arg_temp_created -check format -check assume -check format -check output_conversion -check pointers -check stack -check uninit -debug all -warn all -extend-source 132 -traceback
 $OPTIMIZE    = -O2
@@ -27,13 +24,30 @@ build_dir = ./shared/
 output    = libfortranlogger.so
 mklib     = shared
 
+[shared-gnu-mpi]
+template  = template-shared-gnu
+target    = src/lib/fortran_logger.F90
+build_dir = ./shared_mpi/
+output    = libfortranlogger_mpi.so
+mklib     = shared
+preproc   = $MPI_PREPROCESS
+mpi       = true
+
 [static-gnu]
 template  = template-static-gnu
 target    = src/lib/fortran_logger.F90
 build_dir = ./static/
 output    = libfortranlogger.a
 mklib     = static
-#mpi       = true
+
+[static-gnu-mpi]
+template  = template-static-gnu
+target    = src/lib/fortran_logger.F90
+build_dir = ./static_mpi/
+output    = libfortranlogger_mpi.a
+mklib     = static
+preproc   = $MPI_PREPROCESS
+mpi       = true
 
 [tests-gnu]
 template  = template-static-gnu
@@ -46,13 +60,30 @@ build_dir = ./shared/
 output    = libfortranlogger.so
 mklib     = shared
 
+[shared-gnu-mpi-debug]
+template  = template-shared-gnu-debug
+target    = src/lib/fortran_logger.F90
+build_dir = ./shared_mpi/
+output    = libfortranlogger_mpi.so
+mklib     = shared
+preproc   = $MPI_PREPROCESS
+mpi       = true
+
 [static-gnu-debug]
 template  = template-static-gnu-debug
 target    = src/lib/fortran_logger.F90
 build_dir = ./static/
 output    = libfortranlogger.a
 mklib     = static
-#mpi       = true
+
+[static-gnu-mpi-debug]
+template  = template-static-gnu-debug
+target    = src/lib/fortran_logger.F90
+build_dir = ./static_mpi/
+output    = libfortranlogger_mpi.a
+mklib     = static
+preproc   = $MPI_PREPROCESS
+mpi       = true
 
 [tests-gnu-debug]
 template  = template-static-gnu-debug
@@ -65,12 +96,30 @@ build_dir = ./shared/
 output    = libfortranlogger.so
 mklib     = shared
 
+[shared-intel-mpi]
+template  = template-shared-intel
+target    = src/lib/fortran_logger.F90
+build_dir = ./shared_mpi/
+output    = libfortranlogger_mpi.so
+mklib     = shared
+preproc   = $MPI_PREPROCESS
+mpi       = true
+
 [static-intel]
 template  = template-static-intel
 target    = src/lib/fortran_logger.F90
 build_dir = ./static/
 output    = libfortranlogger.a
 mklib     = static
+
+[static-intel-mpi]
+template  = template-static-intel
+target    = src/lib/fortran_logger.F90
+build_dir = ./static_mpi/
+output    = libfortranlogger_mpi.a
+mklib     = static
+preproc   = $MPI_PREPROCESS
+mpi       = true
 
 [tests-intel]
 template  = template-static-intel
@@ -83,12 +132,30 @@ build_dir = ./shared/
 output    = libfortranlogger.so
 mklib     = shared
 
+[shared-intel-mpi-debug]
+template  = template-shared-intel-debug
+target    = src/lib/fortran_logger.F90
+build_dir = ./shared_mpi/
+output    = libfortranlogger_mpi.so
+mklib     = shared
+preproc   = $MPI_PREPROCESS
+mpi       = true
+
 [static-intel-debug]
 template  = template-static-intel-debug
 target    = src/lib/fortran_logger.F90
 build_dir = ./static/
 output    = libfortranlogger.a
 mklib     = static
+
+[static-intel-mpi-debug]
+template  = template-static-intel-debug
+target    = src/lib/fortran_logger.F90
+build_dir = ./static_mpi/
+output    = libfortranlogger_mpi.a
+mklib     = static
+preproc   = $MPI_PREPROCESS
+mpi       = true
 
 [tests-intel-debug]
 template  = template-static-intel-debug

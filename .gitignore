@@ -31,5 +31,15 @@
 *.out
 *.app
 
+# Developer files
 .fortls
 .vscode
+
+# Libraries
+static
+shared
+static_mpi
+shared_mpi
+
+# Logs
+*.log
