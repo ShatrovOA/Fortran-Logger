@@ -21,7 +21,8 @@ public :: fortran_logger_t
     character(len = :), allocatable :: msg
   end type str_handle
 
-  type, public :: fortran_logger_t
+  type :: fortran_logger_t
+  private
     integer(I4P) :: log_level = 0
     logical :: print_timestamp = .false.
     logical :: use_log_file = .false.
