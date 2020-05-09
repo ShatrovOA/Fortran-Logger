@@ -10,11 +10,12 @@ use mpi_f08
 use penf
 implicit none
 private
+public :: fortran_logger_t
 
-  integer(I4P), parameter :: error_level  = 1
-  integer(I4P), parameter :: warn_level   = 2
-  integer(I4P), parameter :: info_level   = 3
-  integer(I4P), parameter :: debug_level  = 4
+  integer(I4P), parameter :: error_level  = 1_I4P   !< Error Level Code
+  integer(I4P), parameter :: warn_level   = 2_I4P   !< Warning Level Code
+  integer(I4P), parameter :: info_level   = 3_I4P   !< Info Level Code
+  integer(I4P), parameter :: debug_level  = 4_I4P   !< Debug Level Code
 
   type :: str_handle
     character(len = :), allocatable :: msg
@@ -24,7 +25,6 @@ private
     integer(I4P) :: log_level = 0
     logical :: print_timestamp = .false.
     logical :: use_log_file = .false.
-    logical :: is_mpi_init = .false.
     logical :: is_setup = .false.
 
     type(str_handle) :: pref(4)
@@ -48,13 +48,14 @@ private
 #endif
     integer(I4P) :: ierror = 0
   contains
-    private
+  private
     procedure, pass(self),  public :: initialize
 #ifdef _MPI
-    ! procedure, pass(self),  public :: mpi_init
+    procedure, pass(self),  public :: set_comm
     procedure, pass(self),  public :: set_printing_rank
-    procedure, pass(self) :: gather
+    procedure, pass(self)          :: gather
 #endif
+  ! Public methods
     procedure, pass(self),  public :: debug
     procedure, pass(self),  public :: info
     procedure, pass(self),  public :: warn
@@ -64,78 +65,79 @@ private
     procedure, pass(self),  public :: finalize
     procedure, pass(self),  public :: check_directory
     procedure, pass(self),  public :: check_file
-    generic, public ::  check_alloc =>           &
-                        check_alloc_rank1_cR8P,  &
-                        check_alloc_rank1_cR4P,  &
-                        check_alloc_rank1_R8P,   &
-                        check_alloc_rank1_R4P,   &
-                        check_alloc_rank1_I8P,   &
-                        check_alloc_rank1_I4P,   &
-                        check_alloc_rank1_I2P,   &
-                        check_alloc_rank1_I1P,   &
-                        check_alloc_rank2_cR8P,  &
-                        check_alloc_rank2_cR4P,  &
-                        check_alloc_rank2_R8P,   &
-                        check_alloc_rank2_R4P,   &
-                        check_alloc_rank2_I8P,   &
-                        check_alloc_rank2_I4P,   &
-                        check_alloc_rank2_I2P,   &
-                        check_alloc_rank2_I1P,   &
-                        check_alloc_rank3_cR8P,  &
-                        check_alloc_rank3_cR4P,  &
-                        check_alloc_rank3_R8P,   &
-                        check_alloc_rank3_R4P,   &
-                        check_alloc_rank3_I8P,   &
-                        check_alloc_rank3_I4P,   &
-                        check_alloc_rank3_I2P,   &
-                        check_alloc_rank3_I1P,   &
-                        check_alloc_rank4_cR8P,  &
-                        check_alloc_rank4_cR4P,  &
-                        check_alloc_rank4_R8P,   &
-                        check_alloc_rank4_R4P,   &
-                        check_alloc_rank4_I8P,   &
-                        check_alloc_rank4_I4P,   &
-                        check_alloc_rank4_I2P,   &
-                        check_alloc_rank4_I1P   
-    procedure, pass(self) :: check_alloc_rank1_R8P
-    procedure, pass(self) :: check_alloc_rank1_R4P
-    procedure, pass(self) :: check_alloc_rank1_cR8P
-    procedure, pass(self) :: check_alloc_rank1_cR4P
-    procedure, pass(self) :: check_alloc_rank1_I8P
-    procedure, pass(self) :: check_alloc_rank1_I4P
-    procedure, pass(self) :: check_alloc_rank1_I2P
-    procedure, pass(self) :: check_alloc_rank1_I1P
-    procedure, pass(self) :: check_alloc_rank2_R8P
-    procedure, pass(self) :: check_alloc_rank2_R4P
-    procedure, pass(self) :: check_alloc_rank2_cR8P
-    procedure, pass(self) :: check_alloc_rank2_cR4P
-    procedure, pass(self) :: check_alloc_rank2_I8P
-    procedure, pass(self) :: check_alloc_rank2_I4P
-    procedure, pass(self) :: check_alloc_rank2_I2P
-    procedure, pass(self) :: check_alloc_rank2_I1P
-    procedure, pass(self) :: check_alloc_rank3_R8P
-    procedure, pass(self) :: check_alloc_rank3_R4P
-    procedure, pass(self) :: check_alloc_rank3_cR8P
-    procedure, pass(self) :: check_alloc_rank3_cR4P
-    procedure, pass(self) :: check_alloc_rank3_I8P
-    procedure, pass(self) :: check_alloc_rank3_I4P
-    procedure, pass(self) :: check_alloc_rank3_I2P
-    procedure, pass(self) :: check_alloc_rank3_I1P
-    procedure, pass(self) :: check_alloc_rank4_R8P
-    procedure, pass(self) :: check_alloc_rank4_R4P
-    procedure, pass(self) :: check_alloc_rank4_cR8P
-    procedure, pass(self) :: check_alloc_rank4_cR4P
-    procedure, pass(self) :: check_alloc_rank4_I8P
-    procedure, pass(self) :: check_alloc_rank4_I4P
-    procedure, pass(self) :: check_alloc_rank4_I2P
-    procedure, pass(self) :: check_alloc_rank4_I1P
-    procedure, pass(self) :: set_default_values
-    procedure, pass(self) :: open_scratch_file
-    procedure, pass(self) :: close_scratch_file
-    procedure, pass(self) :: write_message
-    procedure, pass(self) :: setup
-    procedure, pass(self) :: checkerr
-    procedure, pass(self) :: current_timestamp
+    generic,                public :: check_alloc =>             &
+                                        check_alloc_rank1_cR8P,  &
+                                        check_alloc_rank1_cR4P,  &
+                                        check_alloc_rank1_R8P,   &
+                                        check_alloc_rank1_R4P,   &
+                                        check_alloc_rank1_I8P,   &
+                                        check_alloc_rank1_I4P,   &
+                                        check_alloc_rank1_I2P,   &
+                                        check_alloc_rank1_I1P,   &
+                                        check_alloc_rank2_cR8P,  &
+                                        check_alloc_rank2_cR4P,  &
+                                        check_alloc_rank2_R8P,   &
+                                        check_alloc_rank2_R4P,   &
+                                        check_alloc_rank2_I8P,   &
+                                        check_alloc_rank2_I4P,   &
+                                        check_alloc_rank2_I2P,   &
+                                        check_alloc_rank2_I1P,   &
+                                        check_alloc_rank3_cR8P,  &
+                                        check_alloc_rank3_cR4P,  &
+                                        check_alloc_rank3_R8P,   &
+                                        check_alloc_rank3_R4P,   &
+                                        check_alloc_rank3_I8P,   &
+                                        check_alloc_rank3_I4P,   &
+                                        check_alloc_rank3_I2P,   &
+                                        check_alloc_rank3_I1P,   &
+                                        check_alloc_rank4_cR8P,  &
+                                        check_alloc_rank4_cR4P,  &
+                                        check_alloc_rank4_R8P,   &
+                                        check_alloc_rank4_R4P,   &
+                                        check_alloc_rank4_I8P,   &
+                                        check_alloc_rank4_I4P,   &
+                                        check_alloc_rank4_I2P,   &
+                                        check_alloc_rank4_I1P   
+    procedure, pass(self),  public :: check_alloc_rank1_R8P
+    procedure, pass(self),  public :: check_alloc_rank1_R4P
+    procedure, pass(self),  public :: check_alloc_rank1_cR8P
+    procedure, pass(self),  public :: check_alloc_rank1_cR4P
+    procedure, pass(self),  public :: check_alloc_rank1_I8P
+    procedure, pass(self),  public :: check_alloc_rank1_I4P
+    procedure, pass(self),  public :: check_alloc_rank1_I2P
+    procedure, pass(self),  public :: check_alloc_rank1_I1P
+    procedure, pass(self),  public :: check_alloc_rank2_R8P
+    procedure, pass(self),  public :: check_alloc_rank2_R4P
+    procedure, pass(self),  public :: check_alloc_rank2_cR8P
+    procedure, pass(self),  public :: check_alloc_rank2_cR4P
+    procedure, pass(self),  public :: check_alloc_rank2_I8P
+    procedure, pass(self),  public :: check_alloc_rank2_I4P
+    procedure, pass(self),  public :: check_alloc_rank2_I2P
+    procedure, pass(self),  public :: check_alloc_rank2_I1P
+    procedure, pass(self),  public :: check_alloc_rank3_R8P
+    procedure, pass(self),  public :: check_alloc_rank3_R4P
+    procedure, pass(self),  public :: check_alloc_rank3_cR8P
+    procedure, pass(self),  public :: check_alloc_rank3_cR4P
+    procedure, pass(self),  public :: check_alloc_rank3_I8P
+    procedure, pass(self),  public :: check_alloc_rank3_I4P
+    procedure, pass(self),  public :: check_alloc_rank3_I2P
+    procedure, pass(self),  public :: check_alloc_rank3_I1P
+    procedure, pass(self),  public :: check_alloc_rank4_R8P
+    procedure, pass(self),  public :: check_alloc_rank4_R4P
+    procedure, pass(self),  public :: check_alloc_rank4_cR8P
+    procedure, pass(self),  public :: check_alloc_rank4_cR4P
+    procedure, pass(self),  public :: check_alloc_rank4_I8P
+    procedure, pass(self),  public :: check_alloc_rank4_I4P
+    procedure, pass(self),  public :: check_alloc_rank4_I2P
+    procedure, pass(self),  public :: check_alloc_rank4_I1P
+  ! Private methods
+    procedure, pass(self),  private :: set_default_values
+    procedure, pass(self),  private :: open_scratch_file
+    procedure, pass(self),  private :: close_scratch_file
+    procedure, pass(self),  private :: write_message
+    procedure, pass(self),  private :: setup
+    procedure, pass(self),  private :: checkerr
+    procedure, pass(self),  private :: current_timestamp
   end type fortran_logger_t
 
   interface get_passed_value
@@ -239,10 +241,10 @@ contains
       self%use_log_file = .true.
       self%n_sim_units = 2
     endif
-    call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
+    call self%check_error(check_routine = 'get_passed_value', error_code = self%ierror, routine = 'init', is_fatal = .false.)
 
     call get_passed_value(cli = cli, switch = '-log_lev',   val = self%log_level, ierror = self%ierror)
-    call self%check_error(check_routine = 'get_passed_value', err = self%ierror, routine = 'init', is_fatal = .false.)
+    call self%check_error(check_routine = 'get_passed_value', error_code = self%ierror, routine = 'init', is_fatal = .false.)
     if(self%log_level > 4) then
       call self%warn(message = 'Value of passed log_level = '//trim(str(n = self%log_level,no_sign = .true.))//' > 4 = debug')
       call self%warn(message = 'Assuming log_level = 4')
@@ -263,28 +265,6 @@ contains
   end subroutine initialize
 
 #ifdef _MPI
-! !-------------------------------------------------------------------------------------
-!   subroutine mpi_init(self, comm)
-! !-------------------------------------------------------------------------------------
-! !< Initialize MPI structure
-! !-------------------------------------------------------------------------------------
-!     class(fortran_logger_t),    intent(inout) :: self
-!     type(MPI_Comm), optional, intent(in)    :: comm
-
-!     if(present(comm)) then
-!       self%comm = comm
-!     else
-!       self%comm = MPI_COMM_WORLD
-!     endif
-
-!     call MPI_Comm_size(self%comm, self%np, self%ierror)
-
-!     call MPI_Comm_rank(self%comm, self%rank, self%ierror)
-
-!     allocate(self%tmp(0:self%np - 1))
-
-!   end subroutine mpi_init
-
   subroutine set_printing_rank(self, rank)
     class(fortran_logger_t),  intent(inout) :: self   !< Logger
     integer(I4P),             intent(in)    :: rank
@@ -310,23 +290,31 @@ contains
   
   end subroutine set_printing_rank
 
+  subroutine set_comm(self, comm)
+    class(fortran_logger_t),  intent(inout) :: self   !< Logger
+    type(MPI_Comm),           intent(in)    :: comm
+
+    self%comm = comm
+
+  end subroutine set_comm
+
 !-------------------------------------------------------------------------------------
-  subroutine gather(self, err, pos)
+  subroutine gather(self, error_code, pos)
 !-------------------------------------------------------------------------------------
 !< Gather all error codes, find nonzero error code and rank
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout) :: self   !< Logger
-    integer(I4P),             intent(inout) :: err
+    integer(I4P),             intent(inout) :: error_code
     integer(I4P),             intent(out)   :: pos
     integer(I4P) :: tmp
 
-    tmp = abs(err)
+    tmp = abs(error_code)
 
     call MPI_Allgather(tmp, 1, MPI_INTEGER, self%tmp, 1, MPI_INTEGER, self%comm, self%ierror)
 
     pos = maxloc(self%tmp, dim = 1) - 1
 
-    call MPI_Bcast(err, 1, MPI_INTEGER, pos, self%comm, self%ierror)
+    call MPI_Bcast(error_code, 1, MPI_INTEGER, pos, self%comm, self%ierror)
     
   end subroutine gather
 #endif
@@ -488,19 +476,19 @@ contains
   end subroutine warn
 
 !-------------------------------------------------------------------------------------
-  subroutine check_error(self, check_routine, err, routine, is_fatal)
+  subroutine check_error(self, check_routine, error_code, routine, is_fatal)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),      intent(inout) :: self           !< Logger
     character(len = *),           intent(in)    :: check_routine
-    integer(I4P),                 intent(in)    :: err
+    integer(I4P),                 intent(in)    :: error_code
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
     logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
 
 
     call self%checkerr(message = 'Subroutine '//check_routine//' returned',   &
-                       err = err, routine = routine, is_fatal = is_fatal      )
+                       error_code = error_code, routine = routine, is_fatal = is_fatal      )
 
   end subroutine check_error
 
@@ -588,29 +576,29 @@ contains
   end subroutine check_file
 
 !-------------------------------------------------------------------------------------
-  subroutine checkerr(self, message, err, routine, is_fatal)
+  subroutine checkerr(self, message, error_code, routine, is_fatal)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),      intent(inout) :: self     !< Logger
     character(len = *),           intent(in)    :: message
-    integer(I4P),                 intent(in)    :: err
+    integer(I4P),                 intent(in)    :: error_code
     character(len = *), optional, intent(in)    :: routine  !< Tracing routine
     logical,            optional, intent(in)    :: is_fatal !< Fatal error. Default is .false.
     integer(I4P) :: ierr, rank
 
-    ierr = err
+    ierr = error_code
 
 #ifdef _MPI
     call self%gather(ierr, rank)
 #endif
 
     if(ierr /= 0) then
-      call self%error(message = message, routine = routine, err = ierr,         &
 #ifdef _MPI
-                                                            rank = rank,        &
+      call self%error(message = message, routine = routine, error_code = ierr, rank = rank, is_fatal = is_fatal )
+#else
+      call self%error(message = message, routine = routine, error_code = ierr, is_fatal = is_fatal )
 #endif
-                                                            is_fatal = is_fatal )
     endif
 
   end subroutine checkerr
@@ -624,12 +612,12 @@ contains
     complex(R8P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank1_cR8P
 
@@ -642,12 +630,12 @@ contains
     complex(R4P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank1_cR4P
 
@@ -660,12 +648,12 @@ contains
     real(R8P),       allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank1_R8P
 
@@ -678,12 +666,12 @@ contains
     real(R4P),       allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank1_R4P
 
@@ -696,12 +684,12 @@ contains
     integer(I8P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank1_I8P
 
@@ -714,12 +702,12 @@ contains
     integer(I4P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank1_I4P
 
@@ -732,12 +720,12 @@ contains
     integer(I2P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank1_I2P
 
@@ -750,12 +738,12 @@ contains
     integer(I1P),    allocatable, intent(in)    :: check(:)     !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank1_I1P
 
@@ -768,12 +756,12 @@ contains
     real(R8P),       allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank2_R8P
 
@@ -786,12 +774,12 @@ contains
     real(R4P),       allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank2_R4P
 
@@ -804,12 +792,12 @@ contains
     complex(R8P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank2_cR8P
 
@@ -822,12 +810,12 @@ contains
     complex(R4P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank2_cR4P
 
@@ -840,12 +828,12 @@ contains
     integer(I8P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank2_I8P
 
@@ -858,12 +846,12 @@ contains
     integer(I4P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank2_I4P
 
@@ -876,12 +864,12 @@ contains
     integer(I2P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank2_I2P
 
@@ -894,12 +882,12 @@ contains
     integer(I1P),    allocatable, intent(in)    :: check(:,:)   !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank2_I1P
 
@@ -912,12 +900,12 @@ contains
     real(R8P),       allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank3_R8P
 
@@ -930,12 +918,12 @@ contains
     real(R4P),       allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank3_R4P
 
@@ -948,12 +936,12 @@ contains
     complex(R8P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank3_cR8P
 
@@ -966,12 +954,12 @@ contains
     complex(R4P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank3_cR4P
 
@@ -984,12 +972,12 @@ contains
     integer(I8P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank3_I8P
 
@@ -1002,12 +990,12 @@ contains
     integer(I4P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank3_I4P
 
@@ -1020,12 +1008,12 @@ contains
     integer(I2P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank3_I2P
 
@@ -1038,12 +1026,12 @@ contains
     integer(I1P),    allocatable, intent(in)    :: check(:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name   !< Name of the array
     character(len = *), optional, intent(in)    :: routine      !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank3_I1P
 
@@ -1056,12 +1044,12 @@ contains
     real(R8P),       allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank4_R8P
 
@@ -1074,12 +1062,12 @@ contains
     real(R4P),       allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank4_R4P
 
@@ -1092,12 +1080,12 @@ contains
     complex(R8P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank4_cR8P
 
@@ -1110,12 +1098,12 @@ contains
     complex(R4P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank4_cR4P
 
@@ -1128,12 +1116,12 @@ contains
     integer(I8P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank4_I8P
 
@@ -1146,12 +1134,12 @@ contains
     integer(I4P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank4_I4P
 
@@ -1164,12 +1152,12 @@ contains
     integer(I2P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank4_I2P
 
@@ -1182,43 +1170,42 @@ contains
     integer(I1P),    allocatable, intent(in)    :: check(:,:,:,:) !< Array to be checked
     character(len = *),           intent(in)    :: check_name     !< Name of the array
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
-    integer(I4P) :: err
+    integer(I4P) :: error_code
 
-    err = 0
-    if(.not. allocated(check)) err = 1
+    error_code = 0
+    if(.not. allocated(check)) error_code = 1
 
-    call self%checkerr(message = 'Allocation of '//check_name//' failed', err = err, routine = routine, is_fatal = .true.)
+    call self%checkerr(message = 'Allocation of '//check_name//' failed', error_code = error_code, routine = routine, is_fatal = .true.)
 
   end subroutine check_alloc_rank4_I1P
 
 !-------------------------------------------------------------------------------------
-  subroutine error(self, message, routine, err,               &
-
 #ifdef _MPI
-                                                rank,         &
+  subroutine error(self, message, routine, error_code, rank, is_fatal)
+#else
+  subroutine error(self, message, routine, error_code, is_fatal)
 #endif
-                                                      is_fatal)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),      intent(inout) :: self
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
-    integer(I4P),       optional, intent(in)    :: err
+    integer(I4P),       optional, intent(in)    :: error_code
 #ifdef _MPI
     integer(I4P),       optional, intent(in)    :: rank
 #endif
-    logical,            optional, intent(in)    :: is_fatal !< Fatal error. Default is .false.
-    logical :: fatal_error
+    logical,            optional, intent(in)    :: is_fatal     !< Fatal error. Default is .false.
+    logical                                     :: fatal_error
 
     if(self%log_level >= error_level) then
       fatal_error = .false.
       if(present(is_fatal)) fatal_error = is_fatal
-      call self%write_message(level = error_level, message = message, routine = routine, err = err  &
 #ifdef _MPI
-                                                                        , rank = rank               &
+      call self%write_message(level = error_level, message = message, routine = routine, error_code = error_code, rank = rank)
+#else
+      call self%write_message(level = error_level, message = message, routine = routine, error_code = error_code)
 #endif
-                                                                                                    )
       if(fatal_error) then
         call self%write_message(level = error_level, routine = routine,                             &
                                 message = 'This error is fatal. Program will stop executing now...' )
@@ -1226,18 +1213,18 @@ contains
 #ifdef _MPI
         call MPI_Finalize(self%ierror)
 #endif
-        stop
+        call exit(error_code)
       endif
     endif
 
   end subroutine error
 
 !-------------------------------------------------------------------------------------
-  subroutine write_message(self, level, message, routine, err   &
 #ifdef _MPI
-                                                        , rank  &
+  subroutine write_message(self, level, message, routine, error_code, rank)
+#else
+  subroutine write_message(self, level, message, routine, error_code )
 #endif
-                                                                )
 !-------------------------------------------------------------------------------------
 !< Printer
 !-------------------------------------------------------------------------------------
@@ -1245,7 +1232,7 @@ contains
     integer(I4P),                 intent(in)    :: level
     character(len = *),           intent(in)    :: message
     character(len = *), optional, intent(in)    :: routine
-    integer(I4P),       optional, intent(in)    :: err
+    integer(I4P),       optional, intent(in)    :: error_code
 #ifdef _MPI
     integer(I4P),       optional, intent(in)    :: rank
 #endif
@@ -1263,7 +1250,7 @@ contains
 
     tmp = tmp//message
 
-    if(present(err)) tmp  = tmp//' error code '//trim(str(n = err))
+    if(present(error_code)) tmp  = tmp//' error code '//trim(str(n = error_code))
 
 #ifdef _MPI
     if(present(rank)) tmp = tmp//' on rank '//trim(str(n = rank, no_sign = .true.))

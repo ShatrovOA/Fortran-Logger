@@ -22,5 +22,7 @@ implicit none
   call logger%info(message = 'Finished')
 
   call logger%finalize()
+
+  sync all
     
 end program test1
