@@ -44,7 +44,7 @@ public :: fortran_logger_t
     integer(I4P) :: printing_rank = 0
 #ifdef _MPI
     integer(I4P) :: np
-    integer(I4P), allocatable :: tmp(:)
+    integer(I4P), allocatable :: gather_buf(:)
     type(MPI_Comm) :: comm
 #endif
     integer(I4P) :: ierror = 0
@@ -133,8 +133,6 @@ public :: fortran_logger_t
     procedure, pass(self),  public :: check_alloc_rank4_I1P
   ! Private methods
     procedure, pass(self),  private :: set_default_values
-    procedure, pass(self),  private :: open_scratch_file
-    procedure, pass(self),  private :: close_scratch_file
     procedure, pass(self),  private :: write_message
     procedure, pass(self),  private :: setup
     procedure, pass(self),  private :: checkerr
@@ -213,11 +211,13 @@ contains
 
     call MPI_Comm_rank(self%comm, self%rank, self%ierror)
 
-    allocate(self%tmp(0:self%np - 1))
+    allocate(self%gather_buf(0:self%np - 1))
 #endif
 
-
-    call self%open_scratch_file()
+    open( newunit = self%null_unit,   &
+          file = '/dev/null',         &
+          action = 'write',           &
+          iostat = self%ierror        )
 
     call cli%init(ignore_unknown_clas = .true.,   &
                   usage_lun = self%null_unit,     &
@@ -311,9 +311,9 @@ contains
 
     tmp = abs(error_code)
 
-    call MPI_Allgather(tmp, 1, MPI_INTEGER, self%tmp, 1, MPI_INTEGER, self%comm, self%ierror)
+    call MPI_Allgather(tmp, 1, MPI_INTEGER, self%gather_buf, 1, MPI_INTEGER, self%comm, self%ierror)
 
-    pos = maxloc(self%tmp, dim = 1) - 1
+    pos = maxloc(self%gather_buf, dim = 1) - 1
 
     call MPI_Bcast(error_code, 1, MPI_INTEGER, pos, self%comm, self%ierror)
     
@@ -388,7 +388,7 @@ contains
 
     if(self%is_setup) then
       if(self%use_log_file .and. self%rank == self%printing_rank) close(self%logger_unit)
-      call self%close_scratch_file()
+      close(self%null_unit)
     endif
     if(allocated(self%json_types)) deallocate(self%json_types)
     call self%set_default_values()
@@ -1265,30 +1265,5 @@ contains
     end do
     
   end subroutine write_message
-
-!-------------------------------------------------------------------------------------
-  subroutine open_scratch_file(self)
-!-------------------------------------------------------------------------------------
-!< 
-!-------------------------------------------------------------------------------------
-    class(fortran_logger_t), intent(inout) :: self
-
-    open( newunit = self%null_unit,   &
-          action = 'write',           &
-          status = 'scratch',         &
-          iostat = self%ierror        )
-
-  end subroutine open_scratch_file
-
-!-------------------------------------------------------------------------------------
-  subroutine close_scratch_file(self)
-!-------------------------------------------------------------------------------------
-!< 
-!-------------------------------------------------------------------------------------
-    class(fortran_logger_t), intent(inout) :: self
-
-    close(self%null_unit)
-
-  end subroutine close_scratch_file
     
 end module fortran_logger
