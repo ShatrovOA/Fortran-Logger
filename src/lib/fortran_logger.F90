@@ -529,7 +529,7 @@ contains
   end subroutine check_json_value
 
 !-------------------------------------------------------------------------------------
-  subroutine check_directory(self, dir_path, is_create, routine, is_fatal)
+  subroutine check_directory(self, dir_path, is_create, routine, is_fatal, ierror)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
@@ -538,15 +538,18 @@ contains
     logical,                      intent(in)    :: is_create      !< Create directory if it doesn't exist
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
     logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
+    integer(I4P),       optional, intent(out)   :: ierror         !< Error code
+    integer(I4P) :: error_code
     logical :: exist
 
+    error_code = 0
 #ifdef __INTEL_COMPILER
     inquire(directory = dir_path, exist = exist)
 #else
     inquire(file = dir_path, exist = exist)
 #endif
-
     if(.not. exist) then
+      error_code = -1
       if(is_create) then
         call self%info('Creating directory "'//dir_path//'"', routine = routine)
         call execute_command_line('mkdir -p '//dir_path)
@@ -554,11 +557,12 @@ contains
         call self%error('Directory "'//dir_path//'"'//" doesn't exist", routine = routine, is_fatal = is_fatal)
       endif
     endif
+    if(present(ierror)) ierror = error_code
 
   end subroutine check_directory
 
 !-------------------------------------------------------------------------------------
-  subroutine check_file(self, file_path, routine, is_fatal)
+  subroutine check_file(self, file_path, routine, is_fatal, ierror)
 !-------------------------------------------------------------------------------------
 !< 
 !-------------------------------------------------------------------------------------
@@ -566,13 +570,18 @@ contains
     character(len = *),           intent(in)    :: file_path      !< Path to directory
     character(len = *), optional, intent(in)    :: routine        !< Tracing routine
     logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
+    integer(I4P),       optional, intent(out)   :: ierror         !< Error code
+    integer(I4P) :: error_code
     logical :: exist
 
-    inquire(file = file_path, exist = exist)
+    error_code = 0
 
+    inquire(file = file_path, exist = exist)
     if(.not. exist) then
+      error_code = -1
       call self%error('File "'//file_path//'"'//" doesn't exist", routine = routine, is_fatal = is_fatal)
     endif
+    if(present(ierror)) ierror = error_code
 
   end subroutine check_file
 
@@ -1214,7 +1223,7 @@ contains
 #ifdef _MPI
         call MPI_Finalize(self%ierror)
 #endif
-        call exit(error_code)
+        stop 
       endif
     endif
 
