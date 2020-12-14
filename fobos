@@ -7,6 +7,7 @@ modes = shared-gnu static-gnu tests-gnu shared-gnu-mpi static-gnu-mpi static-gnu
 [common-variables]
 $MPI_PREPROCESS = -D_MPI
 $CAF_PREPROCESS = -D_CAF
+$R16P_SUPPORED = -D_R16P
 $CSHARED_GNU = -cpp -c -fPIC -frealloc-lhs -fno-omit-frame-pointer -DUSE_UCS4 -std=f2018 -ffree-line-length-none
 $CSHARED_INT = -cpp -c -fpic -assume realloc_lhs 
 $LSHARED     = -shared
@@ -24,6 +25,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./shared/
 output    = libfortranlogger.so
 mklib     = shared
+preproc   = $R16P_SUPPORED
 
 [shared-gnu-mpi]
 template  = template-shared-gnu
@@ -31,7 +33,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./shared_mpi/
 output    = libfortranlogger_mpi.so
 mklib     = shared
-preproc   = $MPI_PREPROCESS
+preproc   = $MPI_PREPROCESS $R16P_SUPPORED
 mpi       = true
 
 [static-gnu]
@@ -40,6 +42,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./static/
 output    = libfortranlogger.a
 mklib     = static
+preproc   = $R16P_SUPPORED
 
 [static-gnu-mpi]
 template  = template-static-gnu
@@ -47,7 +50,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./static_mpi/
 output    = libfortranlogger_mpi.a
 mklib     = static
-preproc   = $MPI_PREPROCESS
+preproc   = $MPI_PREPROCESS $R16P_SUPPORED
 mpi       = true
 
 [static-gnu-caf]
@@ -56,7 +59,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./static_caf/
 output    = libfortranlogger_caf.a
 mklib     = static
-preproc   = $CAF_PREPROCESS
+preproc   = $CAF_PREPROCESS $R16P_SUPPORED
 coarray   = true
 
 [tests-gnu]
@@ -69,6 +72,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./shared/
 output    = libfortranlogger.so
 mklib     = shared
+preproc   = $R16P_SUPPORED
 
 [shared-gnu-mpi-debug]
 template  = template-shared-gnu-debug
@@ -76,7 +80,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./shared_mpi/
 output    = libfortranlogger_mpi.so
 mklib     = shared
-preproc   = $MPI_PREPROCESS
+preproc   = $MPI_PREPROCESS $R16P_SUPPORED
 mpi       = true
 
 [static-gnu-debug]
@@ -85,6 +89,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./static/
 output    = libfortranlogger.a
 mklib     = static
+preproc   = $R16P_SUPPORED
 
 [static-gnu-mpi-debug]
 template  = template-static-gnu-debug
@@ -92,7 +97,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./static_mpi/
 output    = libfortranlogger_mpi.a
 mklib     = static
-preproc   = $MPI_PREPROCESS
+preproc   = $MPI_PREPROCESS $R16P_SUPPORED
 mpi       = true
 
 [tests-gnu-debug]
@@ -105,6 +110,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./shared/
 output    = libfortranlogger.so
 mklib     = shared
+preproc   = $R16P_SUPPORED
 
 [shared-intel-mpi]
 template  = template-shared-intel
@@ -112,7 +118,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./shared_mpi/
 output    = libfortranlogger_mpi.so
 mklib     = shared
-preproc   = $MPI_PREPROCESS
+preproc   = $MPI_PREPROCESS $R16P_SUPPORED
 mpi       = true
 
 [static-intel]
@@ -121,6 +127,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./static/
 output    = libfortranlogger.a
 mklib     = static
+preproc   = $R16P_SUPPORED
 
 [static-intel-mpi]
 template  = template-static-intel
@@ -128,7 +135,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./static_mpi/
 output    = libfortranlogger_mpi.a
 mklib     = static
-preproc   = $MPI_PREPROCESS
+preproc   = $MPI_PREPROCESS $R16P_SUPPORED
 mpi       = true
 
 [tests-intel]
@@ -141,6 +148,7 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./shared/
 output    = libfortranlogger.so
 mklib     = shared
+preproc   = $R16P_SUPPORED
 
 [shared-intel-mpi-debug]
 template  = template-shared-intel-debug
@@ -157,14 +165,15 @@ target    = src/lib/fortran_logger.F90
 build_dir = ./static/
 output    = libfortranlogger.a
 mklib     = static
+preproc   = $R16P_SUPPORED
 
 [static-intel-mpi-debug]
 template  = template-static-intel-debug
 target    = src/lib/fortran_logger.F90
 build_dir = ./static_mpi/
 output    = libfortranlogger_mpi.a
-mklib     = static
-preproc   = $MPI_PREPROCESS
+mklib     = static 
+preproc   = $MPI_PREPROCESS $R16P_SUPPORED
 mpi       = true
 
 [tests-intel-debug]
@@ -198,6 +207,7 @@ quiet        = False
 log          = True
 jobs         = 10
 
+
 [template-shared-gnu-debug]
 compiler     = gnu
 cflags       = $CSHARED_GNU $DEBUG_GNU
@@ -210,6 +220,7 @@ colors       = True
 quiet        = False
 log          = True
 jobs         = 10
+
 
 [template-static-gnu-debug]
 compiler     = gnu
@@ -224,6 +235,7 @@ quiet        = False
 log          = True
 jobs         = 10
 
+
 [template-shared-intel]
 compiler     = intel
 cflags       = $CSHARED_INT $OPTIMIZE
@@ -236,6 +248,7 @@ colors       = True
 quiet        = False
 log          = True
 jobs         = 10
+
 
 [template-static-intel]
 compiler     = intel
@@ -250,6 +263,7 @@ quiet        = False
 log          = True
 jobs         = 10
 
+
 [template-shared-intel-debug]
 compiler     = intel
 cflags       = $CSHARED_INT $DEBUG_INT
@@ -263,6 +277,7 @@ quiet        = False
 log          = True
 jobs         = 10
 
+
 [template-static-intel-debug]
 compiler     = intel
 cflags       = $CSTATIC_INT $DEBUG_INT
@@ -275,6 +290,7 @@ colors       = True
 quiet        = False
 log          = True
 jobs         = 10
+
 
 [rule-makedoc]
 help   = Rule for building documentation from source files

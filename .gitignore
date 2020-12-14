@@ -43,3 +43,9 @@ shared_mpi
 
 # Logs
 *.log
+
+# Built documentation
+doc/html
+
+# MacOS files
+.DS_Store
