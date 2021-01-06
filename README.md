@@ -3,7 +3,7 @@
 [![Status](https://img.shields.io/badge/status-stable-brightgreen.svg)]()
 [![Build Status](https://travis-ci.com/ShatrovOA/Fortran-Logger.svg?branch=master)](https://travis-ci.com/ShatrovOA/Fortran-Logger)
 [![Coverage Status](https://codecov.io/gh/ShatrovOA/Fortran-Logger/branch/master/graph/badge.svg?token=QT9Y19KF8X)](https://codecov.io/gh/ShatrovOA/Fortran-Logger)
-![GitHub](https://img.shields.io/github/license/ShatrovOA/Fortran-Logger?color=brightgreen&logo=License)
+[![License](https://img.shields.io/github/license/ShatrovOA/Fortran-Logger?color=brightgreen&logo=License)]()
 ## Main features
 - Free and Open Source Project
 - MPI Support

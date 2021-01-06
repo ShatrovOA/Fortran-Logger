@@ -30,6 +30,9 @@ install:
     fi
   - export PATH="$HOME/.local/bin:$PATH"
   - export FC=/usr/bin/gfortran-10
+  - export OMPI_CXX=g++-10
+  - export OMPI_CC=gcc-10
+  - export OMPI_FC=gfortran-10
   - ln -fs /usr/bin/gfortran-10 "$HOME/.local/bin/gfortran" && gfortran --version
   - ls -l /usr/bin/gfortran-10
   - ln -fs /usr/bin/gcov-10 "$HOME/.local/bin/gcov" && gcov --version
