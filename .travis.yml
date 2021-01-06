@@ -17,7 +17,7 @@ before_install:
    - sudo apt-get -y install binutils
    - sudo apt-get -y install graphviz
    - sudo apt-get -y install gfortran-10
-   - sudo apt-get install libopenmpi-dev openmpi-bin libhdf5-openmpi-dev
+   - sudo apt-get install mpich
    - sudo apt-get -y install python3-pip
    - sudo apt-get -y install python3-setuptools
    - python --version
@@ -30,9 +30,6 @@ install:
     fi
   - export PATH="$HOME/.local/bin:$PATH"
   - export FC=/usr/bin/gfortran-10
-  - export OMPI_CXX=g++-10
-  - export OMPI_CC=gcc-10
-  - export OMPI_FC=gfortran-10
   - ln -fs /usr/bin/gfortran-10 "$HOME/.local/bin/gfortran" && gfortran --version
   - ls -l /usr/bin/gfortran-10
   - ln -fs /usr/bin/gcov-10 "$HOME/.local/bin/gcov" && gcov --version
