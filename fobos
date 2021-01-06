@@ -15,9 +15,9 @@ $MPI_SHARED_LIB = libfortranlogger_mpi.so
 $MPI_PREPROCESS = -D_MPI
 $R16P_SUPPORTED = -D_R16P
 $UCS4_SUPPORTED = -DUSE_UCS4
-$CSHARED_GNU    = -cpp -c -fPIC -frealloc-lhs -fno-omit-frame-pointer -std=f2018 -ffree-line-length-none -shared
+$CSHARED_GNU    = -cpp -c -fPIC -frealloc-lhs -fno-omit-frame-pointer -std=f2008 -ffree-line-length-none -shared
 $CSHARED_INT    = -cpp -c -fpic -assume realloc_lhs -shared
-$CSTATIC_GNU    = -cpp -c -frealloc-lhs -pedantic -std=f2018 -fno-omit-frame-pointer -ffree-line-length-none
+$CSTATIC_GNU    = -cpp -c -frealloc-lhs -pedantic -std=f2008 -fno-omit-frame-pointer -ffree-line-length-none
 $CSTATIC_INT    = -cpp -c -assume realloc_lhs 
 $DEBUG_GNU      = -O0 -g3 -m64 -W -Wall -ggdb -fopt-info -fopt-info-optall-optimized -ftree-vectorize -Wline-truncation -Wcharacter-truncation -Wsurprising -Waliasing -Wimplicit-interface -Wunused-parameter  -fwhole-file  -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -ffpe-summary=none -Warray-bounds -Wimplicit-procedure -Wunderflow -Wuninitialized -fimplicit-none -fbacktrace -fdump-core -finit-real=nan
 $DEBUG_INT      = -O0 -g -check arg_temp_created -check format -check assume -check format -check output_conversion -check pointers -check stack -check uninit -debug all -warn all -extend-source 132 -traceback
