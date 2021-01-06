@@ -1,0 +1,11 @@
+{
+  "Integer value" : 1,
+  "Float value" : true,
+  "Array of integers" : [
+    1,
+    2,
+    3
+  ],
+  "Logical value" : 1.2,
+  "String value" : "test string"
+}

@@ -1,4 +1,7 @@
+!< Fortran-Logger project, definition of [[fortran_logger_t]] class.
+
 module fortran_logger
+!< Fortran-Logger project, definition of [[fortran_logger_t]] class.
 use datetime_module, only: datetime
 use face, only : colorize
 use flap
@@ -10,17 +13,17 @@ use mpi_f08
 #endif
 implicit none
 private
-public :: fortran_logger_t,               &
-          LOGGER_NULL_LEVEL,              &
-          LOGGER_ERROR_LEVEL,             &
-          LOGGER_WARN_LEVEL,              &
-          LOGGER_INFO_LEVEL,              &
-          LOGGER_DEBUG_LEVEL,             &
-          ERROR_ALLOCATION_FAILED,        &
-          ERROR_JSON_VALUE_NOT_FOUND,     &
-          ERROR_JSON_VALUE_TYPE_MISMATCH, &
-          ERROR_DIRECTORY_NOT_FOUND,      &
-          ERROR_FILE_NOT_FOUND
+public :: fortran_logger_t,                       &
+          LOGGER_NULL_LEVEL,                      &
+          LOGGER_ERROR_LEVEL,                     &
+          LOGGER_WARN_LEVEL,                      &
+          LOGGER_INFO_LEVEL,                      &
+          LOGGER_DEBUG_LEVEL,                     &
+          LOGGER_ERROR_ALLOCATION_FAILED,         &
+          LOGGER_ERROR_JSON_VALUE_NOT_FOUND,      &
+          LOGGER_ERROR_JSON_VALUE_TYPE_MISMATCH,  &
+          LOGGER_ERROR_DIRECTORY_NOT_FOUND,       &
+          LOGGER_ERROR_FILE_NOT_FOUND
 
   integer(I4P), parameter :: LOGGER_NULL_LEVEL   = 0_I4P    !< Null Level Code  
                                                             !< Logger will not produce output
@@ -33,14 +36,15 @@ public :: fortran_logger_t,               &
   integer(I4P), parameter :: LOGGER_DEBUG_LEVEL  = 4_I4P    !< Debug Level Code  
                                                             !< Logger will produce all messages
 
-  integer(I4P), parameter :: ERROR_ALLOCATION_FAILED = -999_I4P
-  integer(I4P), parameter :: ERROR_JSON_VALUE_NOT_FOUND = -998_I4P
-  integer(I4P), parameter :: ERROR_JSON_VALUE_TYPE_MISMATCH = -997_I4P
-  integer(I4P), parameter :: ERROR_DIRECTORY_NOT_FOUND = -996_I4P
-  integer(I4P), parameter :: ERROR_FILE_NOT_FOUND = -995_I4P
+  integer(I4P), parameter :: LOGGER_ERROR_ALLOCATION_FAILED = -999_I4P            !< Internal error, allocation failure
+  integer(I4P), parameter :: LOGGER_ERROR_JSON_VALUE_NOT_FOUND = -998_I4P         !< Internal error, requested value not found in json file
+  integer(I4P), parameter :: LOGGER_ERROR_JSON_VALUE_TYPE_MISMATCH = -997_I4P     !< Internal error, requested value has a different type
+  integer(I4P), parameter :: LOGGER_ERROR_DIRECTORY_NOT_FOUND = -996_I4P          !< Internal error, requested directory not found in the path
+  integer(I4P), parameter :: LOGGER_ERROR_FILE_NOT_FOUND = -995_I4P               !< Internal error, requested file not found in the path
+  integer(I4P), parameter :: LOGGER_ERROR_CONVERTED_LOGICAL = -994_I4P            !< Internal error, converted from logical value
 
-  character(len=*), parameter, dimension(0:7) :: json_types = [               &   !< JSON types from json fortran library  
-                                                                "Unknown",    &   !< See https://github.com/jacobwilliams/json-fortran
+  character(len=*), parameter, dimension(0:7) :: JSON_TYPES = [               &   !< JSON types from json fortran library  
+                                                                "Unknown",    &   !< Check it out on [GitHub](https://github.com/jacobwilliams/json-fortran)
                                                                 "Null   ",    &
                                                                 "Object ",    &
                                                                 "Array  ",    &
@@ -51,6 +55,7 @@ public :: fortran_logger_t,               &
                                                               ]
 
   type :: fortran_logger_t
+  !< Definition of Logger class
   private
     integer(I4P)                      :: log_level            !< Level of logging
     type(element_object)              :: logger_object(4)     !< Objects that handle messages from all levels
@@ -60,159 +65,162 @@ public :: fortran_logger_t,               &
     character(len=:),     allocatable :: timestamp_format     !< Timestamp format, C style
     integer(I4P),         allocatable :: ignored_codes(:)     !< Buffer that keeps all ignored codes
 #ifdef _MPI
-    integer(I4P), allocatable         :: gather_buf(:)        !< Buffer that aggregates all error codes, size of np
+    integer(I4P), allocatable         :: gather_buf(:)        !< Buffer that aggregates all error codes
     type(MPI_Comm)                    :: comm                 !< MPI Communicator
 #endif
   contains
   private
   ! Public methods
-    procedure, pass(self),  public :: finalize                            !< Finalization class subroutine
-    procedure, pass(self),  public :: initialize                          !< Initialization class subroutine
-    procedure, pass(self),  public :: error                               !< print error message
-    procedure, pass(self),  public :: warn                                !< print warn message
-    procedure, pass(self),  public :: info                                !< print info message
-    procedure, pass(self),  public :: debug                               !< print debug message
-    procedure, pass(self),  public :: change_unit                         !< runtime output unit change
-    procedure, pass(self),  public :: check_json_value                    !< Checks presence and type of value in json file
-    procedure, pass(self),  public :: check_directory                     !< Checks directory presence
-    procedure, pass(self),  public :: check_file                          !< Checks file presence
-    generic, public :: check_error => check_error_LOGICAL,  &             !< Checks logical error_code returned by external subroutine.  
-                                      check_error_I1P,      &             !< Checks integer I1P error_code returned by external subroutine. 
-                                      check_error_I2P,      &             !< Checks integer I2P error_code returned by external subroutine.  
-                                      check_error_I4P,      &             !< Checks integer I4P error_code returned by external subroutine.  
-                                      check_error_I8P                     !< Checks integer I8P error_code returned by external subroutine.  
-    generic, public :: check_alloc => check_alloc_rank1_CR4P,   &         !< Checks allocation of complex R4P buffer of rank = 1  
-                                      check_alloc_rank1_CR8P,   &         !< Checks allocation of complex R8P buffer of rank = 1  
+    procedure, pass(self),  public :: finalize                  !< Finalization class subroutine
+    procedure, pass(self),  public :: initialize                !< Initialization class subroutine
+    procedure, pass(self),  public :: error                     !< Print error message
+    procedure, pass(self),  public :: warn                      !< Print warn message
+    procedure, pass(self),  public :: info                      !< Print info message
+    procedure, pass(self),  public :: debug                     !< Print debug message
+    procedure, pass(self),  public :: change_unit               !< Runtime output unit change
+    procedure, pass(self),  public :: check_json_value          !< Checks presence and type of value in json file
+    procedure, pass(self),  public :: check_directory           !< Checks directory presence
+    procedure, pass(self),  public :: check_file                !< Checks file presence
+    generic, public :: check_error =>             &             !< Checks error code returned by external subroutine.  
+                       check_error_LOGICAL,       &
+                       check_error_I1P,           &
+                       check_error_I2P,           &
+                       check_error_I4P,           &
+                       check_error_I8P
+    generic, public :: check_alloc =>             &             !< Checks allocation of buffers of different types and ranks
+                       check_alloc_rank1_CR4P,    &
+                       check_alloc_rank1_CR8P,    &
 #ifdef _R16P
-                                      check_alloc_rank1_CR16P,  &         !< Checks allocation of complex R16P buffer of rank = 1  
+                       check_alloc_rank1_CR16P,   &
 #endif
-                                      check_alloc_rank2_CR4P,   &         !< Checks allocation of complex R4P buffer of rank = 2
-                                      check_alloc_rank2_CR8P,   &         !< Checks allocation of complex R8P buffer of rank = 2
+                       check_alloc_rank2_CR4P,    &
+                       check_alloc_rank2_CR8P,    &
 #ifdef _R16P
-                                      check_alloc_rank2_CR16P,  &         !< Checks allocation of complex R16P buffer of rank = 2
+                       check_alloc_rank2_CR16P,   &
 #endif
-                                      check_alloc_rank3_CR4P,   &         !< Checks allocation of complex R4P buffer of rank = 3
-                                      check_alloc_rank3_CR8P,   &         !< Checks allocation of complex R8P buffer of rank = 3
+                       check_alloc_rank3_CR4P,    &
+                       check_alloc_rank3_CR8P,    &
 #ifdef _R16P
-                                      check_alloc_rank3_CR16P,  &         !< Checks allocation of complex R16P buffer of rank = 3
+                       check_alloc_rank3_CR16P,   &
 #endif
-                                      check_alloc_rank4_CR4P,   &         !< Checks allocation of complex R4P buffer of rank = 4
-                                      check_alloc_rank4_CR8P,   &         !< Checks allocation of complex R8P buffer of rank = 4
+                       check_alloc_rank4_CR4P,    &
+                       check_alloc_rank4_CR8P,    &
 #ifdef _R16P
-                                      check_alloc_rank4_CR16P,  &         !< Checks allocation of complex R16P buffer of rank = 4
+                       check_alloc_rank4_CR16P,   &
 #endif
-                                      check_alloc_rank1_R4P,    &         !< Checks allocation of real R4P buffer of rank = 1
-                                      check_alloc_rank1_R8P,    &         !< Checks allocation of real R8P buffer of rank = 1
+                       check_alloc_rank1_R4P,     &
+                       check_alloc_rank1_R8P,     &
 #ifdef _R16P
-                                      check_alloc_rank1_R16P,   &         !< Checks allocation of real R16P buffer of rank = 1
+                       check_alloc_rank1_R16P,    &
 #endif
-                                      check_alloc_rank2_R4P,    &         !< Checks allocation of real R4P buffer of rank = 2
-                                      check_alloc_rank2_R8P,    &         !< Checks allocation of real R8P buffer of rank = 2
+                       check_alloc_rank2_R4P,     &
+                       check_alloc_rank2_R8P,     &
 #ifdef _R16P
-                                      check_alloc_rank2_R16P,   &         !< Checks allocation of real R16P buffer of rank = 2
+                       check_alloc_rank2_R16P,    &
 #endif
-                                      check_alloc_rank3_R4P,    &         !< Checks allocation of real R4P buffer of rank = 3
-                                      check_alloc_rank3_R8P,    &         !< Checks allocation of real R8P buffer of rank = 3
+                       check_alloc_rank3_R4P,     &
+                       check_alloc_rank3_R8P,     &
 #ifdef _R16P
-                                      check_alloc_rank3_R16P,   &         !< Checks allocation of real R16P buffer of rank = 3
+                       check_alloc_rank3_R16P,    &
 #endif
-                                      check_alloc_rank4_R4P,    &         !< Checks allocation of real R4P buffer of rank = 4
-                                      check_alloc_rank4_R8P,    &         !< Checks allocation of real R8P buffer of rank = 4
+                       check_alloc_rank4_R4P,     &
+                       check_alloc_rank4_R8P,     &
 #ifdef _R16P
-                                      check_alloc_rank4_R16P,   &         !< Checks allocation of real R16P buffer of rank = 4
+                       check_alloc_rank4_R16P,    &
 #endif
-                                      check_alloc_rank1_I1P,    &         !< Checks allocation of integer I1P buffer of rank = 1
-                                      check_alloc_rank1_I2P,    &         !< Checks allocation of integer I2P buffer of rank = 1
-                                      check_alloc_rank1_I4P,    &         !< Checks allocation of integer I4P buffer of rank = 1
-                                      check_alloc_rank1_I8P,    &         !< Checks allocation of integer I8P buffer of rank = 1
-                                      check_alloc_rank2_I1P,    &         !< Checks allocation of integer I1P buffer of rank = 2
-                                      check_alloc_rank2_I2P,    &         !< Checks allocation of integer I2P buffer of rank = 2
-                                      check_alloc_rank2_I4P,    &         !< Checks allocation of integer I4P buffer of rank = 2
-                                      check_alloc_rank2_I8P,    &         !< Checks allocation of integer I8P buffer of rank = 2
-                                      check_alloc_rank3_I1P,    &         !< Checks allocation of integer I1P buffer of rank = 3
-                                      check_alloc_rank3_I2P,    &         !< Checks allocation of integer I2P buffer of rank = 3
-                                      check_alloc_rank3_I4P,    &         !< Checks allocation of integer I4P buffer of rank = 3
-                                      check_alloc_rank3_I8P,    &         !< Checks allocation of integer I8P buffer of rank = 3
-                                      check_alloc_rank4_I1P,    &         !< Checks allocation of integer I1P buffer of rank = 4
-                                      check_alloc_rank4_I2P,    &         !< Checks allocation of integer I2P buffer of rank = 4
-                                      check_alloc_rank4_I4P,    &         !< Checks allocation of integer I4P buffer of rank = 4
-                                      check_alloc_rank4_I8P               !< Checks allocation of integer I8P buffer of rank = 4
-    generic, public :: ignore_error_codes => ignore_error_codes_I1P, &    !< Ignore codes type I1P 
-                                             ignore_error_codes_I2P, &    !< Ignore codes type I2P 
-                                             ignore_error_codes_I4P, &    !< Ignore codes type I4P 
-                                             ignore_error_codes_I8P       !< Ignore codes type I2P 
+                       check_alloc_rank1_I1P,     &
+                       check_alloc_rank1_I2P,     &
+                       check_alloc_rank1_I4P,     &
+                       check_alloc_rank1_I8P,     &
+                       check_alloc_rank2_I1P,     &
+                       check_alloc_rank2_I2P,     &
+                       check_alloc_rank2_I4P,     &
+                       check_alloc_rank2_I8P,     &
+                       check_alloc_rank3_I1P,     &
+                       check_alloc_rank3_I2P,     &
+                       check_alloc_rank3_I4P,     &
+                       check_alloc_rank3_I8P,     &
+                       check_alloc_rank4_I1P,     &
+                       check_alloc_rank4_I2P,     &
+                       check_alloc_rank4_I4P,     &
+                       check_alloc_rank4_I8P
+    generic, public :: ignore_error_codes =>      &             !< Ignore codes of various types except logical
+                       ignore_error_codes_I1P,    &
+                       ignore_error_codes_I2P,    &
+                       ignore_error_codes_I4P,    &
+                       ignore_error_codes_I8P
   ! Private methods
   ! Check error methods
-    procedure, pass(self), private :: check_error_LOGICAL                 !< Checks logical error_code returned by external subroutine.  
-    procedure, pass(self), private :: check_error_I1P                     !< Checks integer I1P error_code returned by external subroutine. 
-    procedure, pass(self), private :: check_error_I2P                     !< Checks integer I2P error_code returned by external subroutine.  
-    procedure, pass(self), private :: check_error_I4P                     !< Checks integer I4P error_code returned by external subroutine.  
-    procedure, pass(self), private :: check_error_I8P                     !< Checks integer I8P error_code returned by external subroutine.  
+    procedure, pass(self) :: check_error_LOGICAL                !< Checks logical error_code returned by external subroutine.  
+    procedure, pass(self) :: check_error_I1P                    !< Checks integer I1P error_code returned by external subroutine. 
+    procedure, pass(self) :: check_error_I2P                    !< Checks integer I2P error_code returned by external subroutine.  
+    procedure, pass(self) :: check_error_I4P                    !< Checks integer I4P error_code returned by external subroutine.  
+    procedure, pass(self) :: check_error_I8P                    !< Checks integer I8P error_code returned by external subroutine.  
   ! Check alloc methods
-    procedure, pass(self), private :: check_alloc_rank1_CR4P              !< Checks allocation of complex R4P buffer of rank = 1  
-    procedure, pass(self), private :: check_alloc_rank1_CR8P              !< Checks allocation of complex R8P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank1_CR4P             !< Checks allocation of complex R4P buffer of rank = 1  
+    procedure, pass(self) :: check_alloc_rank1_CR8P             !< Checks allocation of complex R8P buffer of rank = 1
 #ifdef _R16P
-    procedure, pass(self), private :: check_alloc_rank1_CR16P             !< Checks allocation of complex R16P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank1_CR16P            !< Checks allocation of complex R16P buffer of rank = 1
 #endif
-    procedure, pass(self), private :: check_alloc_rank2_CR4P              !< Checks allocation of complex R4P buffer of rank = 2
-    procedure, pass(self), private :: check_alloc_rank2_CR8P              !< Checks allocation of complex R8P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_CR4P             !< Checks allocation of complex R4P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_CR8P             !< Checks allocation of complex R8P buffer of rank = 2
 #ifdef _R16P
-    procedure, pass(self), private :: check_alloc_rank2_CR16P             !< Checks allocation of complex R16P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_CR16P            !< Checks allocation of complex R16P buffer of rank = 2
 #endif
-    procedure, pass(self), private :: check_alloc_rank3_CR4P              !< Checks allocation of complex R4P buffer of rank = 3
-    procedure, pass(self), private :: check_alloc_rank3_CR8P              !< Checks allocation of complex R8P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_CR4P             !< Checks allocation of complex R4P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_CR8P             !< Checks allocation of complex R8P buffer of rank = 3
 #ifdef _R16P
-    procedure, pass(self), private :: check_alloc_rank3_CR16P             !< Checks allocation of complex R16P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_CR16P            !< Checks allocation of complex R16P buffer of rank = 3
 #endif
-    procedure, pass(self), private :: check_alloc_rank4_CR4P              !< Checks allocation of complex R4P buffer of rank = 4
-    procedure, pass(self), private :: check_alloc_rank4_CR8P              !< Checks allocation of complex R8P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_CR4P             !< Checks allocation of complex R4P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_CR8P             !< Checks allocation of complex R8P buffer of rank = 4
 #ifdef _R16P
-    procedure, pass(self), private :: check_alloc_rank4_CR16P             !< Checks allocation of complex R16P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_CR16P            !< Checks allocation of complex R16P buffer of rank = 4
 #endif
-    procedure, pass(self), private :: check_alloc_rank1_R4P               !< Checks allocation of real R4P buffer of rank = 1
-    procedure, pass(self), private :: check_alloc_rank1_R8P               !< Checks allocation of real R8P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank1_R4P              !< Checks allocation of real R4P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank1_R8P              !< Checks allocation of real R8P buffer of rank = 1
 #ifdef _R16P
-    procedure, pass(self), private :: check_alloc_rank1_R16P              !< Checks allocation of real R16P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank1_R16P             !< Checks allocation of real R16P buffer of rank = 1
 #endif
-    procedure, pass(self), private :: check_alloc_rank2_R4P               !< Checks allocation of real R4P buffer of rank = 2
-    procedure, pass(self), private :: check_alloc_rank2_R8P               !< Checks allocation of real R8P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_R4P              !< Checks allocation of real R4P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_R8P              !< Checks allocation of real R8P buffer of rank = 2
 #ifdef _R16P
-    procedure, pass(self), private :: check_alloc_rank2_R16P              !< Checks allocation of real R16P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_R16P             !< Checks allocation of real R16P buffer of rank = 2
 #endif
-    procedure, pass(self), private :: check_alloc_rank3_R4P               !< Checks allocation of real R4P buffer of rank = 3
-    procedure, pass(self), private :: check_alloc_rank3_R8P               !< Checks allocation of real R8P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_R4P              !< Checks allocation of real R4P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_R8P              !< Checks allocation of real R8P buffer of rank = 3
 #ifdef _R16P
-    procedure, pass(self), private :: check_alloc_rank3_R16P              !< Checks allocation of real R16P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_R16P             !< Checks allocation of real R16P buffer of rank = 3
 #endif
-    procedure, pass(self), private :: check_alloc_rank4_R4P               !< Checks allocation of real R4P buffer of rank = 4
-    procedure, pass(self), private :: check_alloc_rank4_R8P               !< Checks allocation of real R8P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_R4P              !< Checks allocation of real R4P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_R8P              !< Checks allocation of real R8P buffer of rank = 4
 #ifdef _R16P
-    procedure, pass(self), private :: check_alloc_rank4_R16P              !< Checks allocation of real R16P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_R16P             !< Checks allocation of real R16P buffer of rank = 4
 #endif
-    procedure, pass(self), private :: check_alloc_rank1_I1P               !< Checks allocation of integer I1P buffer of rank = 1
-    procedure, pass(self), private :: check_alloc_rank1_I2P               !< Checks allocation of integer I2P buffer of rank = 1
-    procedure, pass(self), private :: check_alloc_rank1_I4P               !< Checks allocation of integer I4P buffer of rank = 1
-    procedure, pass(self), private :: check_alloc_rank1_I8P               !< Checks allocation of integer I8P buffer of rank = 1
-    procedure, pass(self), private :: check_alloc_rank2_I1P               !< Checks allocation of integer I1P buffer of rank = 2
-    procedure, pass(self), private :: check_alloc_rank2_I2P               !< Checks allocation of integer I2P buffer of rank = 2
-    procedure, pass(self), private :: check_alloc_rank2_I4P               !< Checks allocation of integer I4P buffer of rank = 2
-    procedure, pass(self), private :: check_alloc_rank2_I8P               !< Checks allocation of integer I8P buffer of rank = 2
-    procedure, pass(self), private :: check_alloc_rank3_I1P               !< Checks allocation of integer I1P buffer of rank = 3
-    procedure, pass(self), private :: check_alloc_rank3_I2P               !< Checks allocation of integer I2P buffer of rank = 3
-    procedure, pass(self), private :: check_alloc_rank3_I4P               !< Checks allocation of integer I4P buffer of rank = 3
-    procedure, pass(self), private :: check_alloc_rank3_I8P               !< Checks allocation of integer I8P buffer of rank = 3
-    procedure, pass(self), private :: check_alloc_rank4_I1P               !< Checks allocation of integer I1P buffer of rank = 4
-    procedure, pass(self), private :: check_alloc_rank4_I2P               !< Checks allocation of integer I2P buffer of rank = 4
-    procedure, pass(self), private :: check_alloc_rank4_I4P               !< Checks allocation of integer I4P buffer of rank = 4
-    procedure, pass(self), private :: check_alloc_rank4_I8P               !< Checks allocation of integer I8P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank1_I1P              !< Checks allocation of integer I1P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank1_I2P              !< Checks allocation of integer I2P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank1_I4P              !< Checks allocation of integer I4P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank1_I8P              !< Checks allocation of integer I8P buffer of rank = 1
+    procedure, pass(self) :: check_alloc_rank2_I1P              !< Checks allocation of integer I1P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_I2P              !< Checks allocation of integer I2P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_I4P              !< Checks allocation of integer I4P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank2_I8P              !< Checks allocation of integer I8P buffer of rank = 2
+    procedure, pass(self) :: check_alloc_rank3_I1P              !< Checks allocation of integer I1P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_I2P              !< Checks allocation of integer I2P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_I4P              !< Checks allocation of integer I4P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank3_I8P              !< Checks allocation of integer I8P buffer of rank = 3
+    procedure, pass(self) :: check_alloc_rank4_I1P              !< Checks allocation of integer I1P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_I2P              !< Checks allocation of integer I2P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_I4P              !< Checks allocation of integer I4P buffer of rank = 4
+    procedure, pass(self) :: check_alloc_rank4_I8P              !< Checks allocation of integer I8P buffer of rank = 4
   ! Ignoring error codes methods
-    procedure, pass(self), private :: ignore_error_codes_I1P              !< Ignore codes type I1P 
-    procedure, pass(self), private :: ignore_error_codes_I2P              !< Ignore codes type I2P 
-    procedure, pass(self), private :: ignore_error_codes_I4P              !< Ignore codes type I4P 
-    procedure, pass(self), private :: ignore_error_codes_I8P              !< Ignore codes type I8P 
+    procedure, pass(self) :: ignore_error_codes_I1P             !< Ignore codes type I1P 
+    procedure, pass(self) :: ignore_error_codes_I2P             !< Ignore codes type I2P 
+    procedure, pass(self) :: ignore_error_codes_I4P             !< Ignore codes type I4P 
+    procedure, pass(self) :: ignore_error_codes_I8P             !< Ignore codes type I8P 
   ! Other private methods
-    procedure, pass(self), private :: gather_error_codes                  !< Gather error codes from all processes
-    procedure, pass(self), private :: print                               !< Print messages to specified unit
+    procedure, pass(self) :: gather_error_codes                 !< Gather error codes from all processes
+    procedure, pass(self) :: print                              !< Print messages to specified unit
   endtype fortran_logger_t
 
 contains 
@@ -270,7 +278,7 @@ contains
     character(len=*),         intent(in), optional  :: warn_color_bg        !< WARN background color
     character(len=*),         intent(in), optional  :: warn_style           !< WARN style
     character(len=*),         intent(in), optional  :: warn_prefix          !< WARN prefix
-    character(len=*),         intent(in), optional  :: warn_suffix          !< WARNsuffix
+    character(len=*),         intent(in), optional  :: warn_suffix          !< WARN suffix
     integer(I4P),             intent(in), optional  :: info_unit            !< Unit used to print INFO messages
     character(len=*),         intent(in), optional  :: info_color_fg        !< INFO foreground color
     character(len=*),         intent(in), optional  :: info_color_bg        !< INFO background color
@@ -289,14 +297,16 @@ contains
     character(len=*),         intent(in), optional  :: timestamp_format     !< Timestamp format, C style
     character(len=*),         intent(in), optional  :: timestamp_color_fg   !< Timestamp foreground color
     character(len=*),         intent(in), optional  :: timestamp_color_bg   !< Timestamp background color
-    character(len=*),         intent(in), optional  :: timestamp_style      !< Timestamp
-    character(len=*),         intent(in), optional  :: timestamp_prefix     !< Timestamp
-    character(len=*),         intent(in), optional  :: timestamp_suffix     !< Timestamp
+    character(len=*),         intent(in), optional  :: timestamp_style      !< Timestamp style
+    character(len=*),         intent(in), optional  :: timestamp_prefix     !< Timestamp prefix
+    character(len=*),         intent(in), optional  :: timestamp_suffix     !< Timestamp suffix
     type(command_line_interface)                    :: cli                  !< CLI parser
-    integer(I4P)                                    :: null_unit            !< /dev/null used to hide CLI messages
+    integer(I4P)                                    :: null_unit            !< Unit used to hide CLI output messages
     integer(I4P)                                    :: temp_level           !< Temporal level value
-    character(len=:),         allocatable           :: this                 !< this method name
+    character(len=:),         allocatable           :: this                 !< This method name
+#ifdef _MPI
     integer(I4P)                                    :: np                   !< MPI number of processes
+#endif
 
     call self%finalize()
     if(present(log_level)) self%log_level = log_level
@@ -330,8 +340,7 @@ contains
 #endif
 
     open( newunit = null_unit,    &
-          file = '/dev/null',     &
-          status='replace',       &
+          status = 'scratch',     &
           action = 'write')
 
     call cli%init(ignore_unknown_clas = .true.,   &
@@ -495,9 +504,9 @@ contains
 !< Will change output unit for the specified logging level
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout) :: self       !< Logger
-    integer(I4P),             intent(in)    :: log_level  !< logging level
-    integer(I4P),             intent(in)    :: new_unit   !< 
-    character(len=:),         allocatable   :: this
+    integer(I4P),             intent(in)    :: log_level  !< Logging level
+    integer(I4P),             intent(in)    :: new_unit   !< New output unit for specified log_level
+    character(len=:),         allocatable   :: this       !< This method name
 
     if(log_level > LOGGER_DEBUG_LEVEL .or. self%log_level < LOGGER_ERROR_LEVEL) then
       this = 'fortran_logger_t.change_unit'
@@ -509,52 +518,58 @@ contains
   end subroutine change_unit
 
 !-------------------------------------------------------------------------------------
-  subroutine debug(self, message, routine)
+  subroutine debug(self, message, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Will print debug message if current logging level = [[LOGGER_DEBUG_LEVEL]]
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout)         :: self     !< Logger
     character(len=*),         intent(in)            :: message  !< Message to be printed
     character(len=*),         intent(in), optional  :: routine  !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file     !< Source file name where debug was called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line     !< Line where debug was called, e.g. \_\_LINE\_\_
 
     if(self%log_level == LOGGER_DEBUG_LEVEL) then
-      call self%print(LOGGER_DEBUG_LEVEL, message, routine = routine)
+      call self%print(LOGGER_DEBUG_LEVEL, message, routine=routine, file=file, line=line)
     endif
   end subroutine debug
 
 !-------------------------------------------------------------------------------------
-  subroutine info(self, message, routine)
+  subroutine info(self, message, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Will print info message if current logging level >= [[LOGGER_INFO_LEVEL]]
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout)         :: self     !< Logger
     character(len=*),         intent(in)            :: message  !< Message to be printed
     character(len=*),         intent(in), optional  :: routine  !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file     !< Source file name where info was called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line     !< Line where info was called, e.g. \_\_LINE\_\_
 
     if(self%log_level >= LOGGER_INFO_LEVEL) then
-      call self%print(LOGGER_INFO_LEVEL, message, routine = routine)
+      call self%print(LOGGER_INFO_LEVEL, message, routine=routine, file=file, line=line)
     endif
   end subroutine info
 
 !-------------------------------------------------------------------------------------
-  subroutine warn(self, message, routine)
+  subroutine warn(self, message, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Will print warn message if current logging level >= [[LOGGER_WARN_LEVEL]]
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout)         :: self     !< Logger
     character(len=*),         intent(in)            :: message  !< Message to be printed
     character(len=*),         intent(in), optional  :: routine  !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file     !< Source file name where warn was called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line     !< Line where warn was called, e.g. \_\_LINE\_\_
 
     if(self%log_level >= LOGGER_WARN_LEVEL) then
-      call self%print(LOGGER_WARN_LEVEL, message, routine = routine)
+      call self%print(LOGGER_WARN_LEVEL, message, routine=routine, file=file, line=line)
     endif
   end subroutine warn
 
 !-------------------------------------------------------------------------------------
 #ifdef _MPI
-  subroutine error(self, message, routine, error_code, errored_rank, is_fatal)
+  subroutine error(self, message, routine, file, line, error_code, errored_rank, is_fatal)
 #else
-  subroutine error(self, message, routine, error_code, is_fatal)
+  subroutine error(self, message, routine, file, line, error_code, is_fatal)
 #endif
 !-------------------------------------------------------------------------------------
 !< Will print error message if current logging level >= [[LOGGER_ERROR_LEVEL]].  
@@ -563,6 +578,8 @@ contains
     class(fortran_logger_t),  intent(inout)         :: self         !< Logger
     character(len=*),         intent(in)            :: message      !< Message to be printed
     character(len=*),         intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file         !< Source file name where error was called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line         !< Line where error was called, e.g. \_\_LINE\_\_
     integer(I4P),             intent(in), optional  :: error_code   !< Internal subroutine returned error code
 #ifdef _MPI
     integer(I4P),             intent(in), optional  :: errored_rank !< Rank where error occured
@@ -579,9 +596,9 @@ contains
     if(self%log_level >= LOGGER_ERROR_LEVEL) then
       fatal_error = .false.; if(present(is_fatal)) fatal_error = is_fatal
 #ifdef _MPI
-      call self%print(LOGGER_ERROR_LEVEL, message, routine = routine, error_code = error_code, rank = errored_rank)
+      call self%print(LOGGER_ERROR_LEVEL, message, routine=routine, file=file, line=line, error_code=error_code, rank=errored_rank)
 #else
-      call self%print(LOGGER_ERROR_LEVEL, message, routine = routine, error_code = error_code)
+      call self%print(LOGGER_ERROR_LEVEL, message, routine=routine, file=file, line=line, error_code=error_code)
 #endif
       if(fatal_error) then
         call self%print(LOGGER_ERROR_LEVEL, 'This error is fatal. Program will stop executing now...', routine = routine)
@@ -596,19 +613,27 @@ contains
   end subroutine error
 
 !-------------------------------------------------------------------------------------
-  subroutine gather_error_codes(self, message, error_code, routine, is_fatal)
+  subroutine gather_error_codes(self, message, error_code, routine, file, line, is_fatal, gathered_code)
 !-------------------------------------------------------------------------------------
 !< Gather error codes from all processes
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),  intent(inout)         :: self                 !< Logger
-    character(len=*),         intent(in)            :: message              !< Message to be printed
-    class(*),                 intent(in)            :: error_code           !< Internal subroutine returned error code
-    character(len=*),         intent(in), optional  :: routine              !< Internal subroutine name
-    logical,                  intent(in), optional  :: is_fatal             !< Fatal error. Default is .false.
-    integer(I4P)                                    :: positive_error_code  !< Absolute value of error_code
-    integer(I4P)                                    :: errored_rank         !< Rank where error occured
-    integer(I4P)                                    :: gathered_error_code  !< Error code similar on all processes
+    class(fortran_logger_t),  intent(inout)           :: self                 !< Logger
+    character(len=*),         intent(in)              :: message              !< Message to be printed
+    class(*),                 intent(in)              :: error_code           !< Internal subroutine returned error code
+    character(len=*),         intent(in),   optional  :: routine              !< Internal subroutine name
+    character(len=*),         intent(in),   optional  :: file                 !< Source file name where error might have occured, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in),   optional  :: line                 !< Line where error might have occured, e.g. \_\_LINE\_\_
+    logical,                  intent(in),   optional  :: is_fatal             !< Fatal error. Default is .false.
+    integer(I4P),             intent(out),  optional  :: gathered_code        !< Aggregated error code similar on all processes.
+    character(len=500)                                :: internal_message     !< Aggregated message to be printed
+    integer(I4P)                                      :: positive_error_code  !< Absolute value of error_code.
+    integer(I4P)                                      :: gathered_error_code  !< Aggregated error code similar on all processes.
+#ifdef _MPI
+    integer(I4P)                                      :: msg_length           !< Length of the message
+    integer(I4P)                                      :: errored_rank         !< Rank where error occured
+#endif
 
+    internal_message = message
     select type(error_code)
     type is (integer(I1P))
       positive_error_code = int(abs(error_code), I4P)
@@ -617,28 +642,31 @@ contains
       positive_error_code = int(abs(error_code), I4P)
       gathered_error_code = int(error_code, I4P)
     type is (integer(I4P))
-      positive_error_code = int(abs(error_code), I4P)
-      gathered_error_code = int(error_code, I4P)
+      positive_error_code = abs(error_code)
+      gathered_error_code = error_code
     type is (integer(I8P))
       positive_error_code = int(abs(error_code), I4P)
       gathered_error_code = int(error_code, I4P)
-    endselect 
+    endselect
 #ifdef _MPI
     call MPI_Allgather(positive_error_code, 1, MPI_INTEGER, self%gather_buf, 1, MPI_INTEGER, self%comm)
     errored_rank = maxloc(self%gather_buf, dim = 1) - 1
     call MPI_Bcast(gathered_error_code, 1, MPI_INTEGER, errored_rank, self%comm)
+    msg_length = len(internal_message)
+    call MPI_Bcast(internal_message, msg_length, MPI_CHARACTER, errored_rank, self%comm)
 #endif
     if(gathered_error_code /= 0_I4P) then 
 #ifdef _MPI
-      call self%error(message = message, routine = routine, error_code = gathered_error_code, errored_rank = errored_rank, is_fatal = is_fatal)
+      call self%error(trim(internal_message), routine=routine, error_code=gathered_error_code, errored_rank=errored_rank, is_fatal=is_fatal, file=file, line=line)
 #else
-      call self%error(message = message, routine = routine, error_code = gathered_error_code, is_fatal = is_fatal)
+      call self%error(trim(internal_message), routine=routine, error_code=gathered_error_code, is_fatal=is_fatal, file=file, line=line)
 #endif
     endif
+    if(present(gathered_code)) gathered_code = gathered_error_code
   end subroutine gather_error_codes
 
 !-------------------------------------------------------------------------------------
-  subroutine check_json_value(self, json, json_path, expected_type, routine, is_fatal, error)
+  subroutine check_json_value(self, json, json_path, expected_type, routine, is_fatal, file, line, error)
 !-------------------------------------------------------------------------------------
 !< Checks presence and type of value in json file
 !< 
@@ -660,89 +688,98 @@ contains
 !< call logger%finalize()
 !<```
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),      intent(inout) :: self             !< Logger
-    class(json_file),             intent(inout) :: json             !< JSON handle
-    character(len=*),             intent(in)    :: json_path        !< Path to variable
-    integer(I4P),                 intent(in)    :: expected_type    !< Expected variable type
-    character(len=*),   optional, intent(in)    :: routine          !< Internal subroutine name
-    logical,            optional, intent(in)    :: is_fatal         !< Fatal error. Default is .false.
-    integer(I4P),       optional, intent(out)   :: error            !< Error code
-    integer(I4P)                                :: recieved_type    !< Actual type found in JSON
-    integer(I4P)                                :: error_code       !< Internal error code
-    logical                                     :: is_value_found   !< Is value found in JSON path flag
-    character(len=:),             allocatable   :: message          !< Error message
+    class(fortran_logger_t),  intent(inout)           :: self             !< Logger
+    class(json_file),         intent(inout)           :: json             !< JSON handle
+    character(len=*),         intent(in)              :: json_path        !< Path to variable
+    integer(I4P),             intent(in)              :: expected_type    !< Expected variable datatype
+    character(len=*),         intent(in),   optional  :: routine          !< Internal subroutine name
+    logical,                  intent(in),   optional  :: is_fatal         !< Fatal error. Default is .false.
+    character(len=*),         intent(in),   optional  :: file             !< Source file name where json is being checked, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in),   optional  :: line             !< Line where json is being checked, e.g. \_\_LINE\_\_
+    integer(I4P),             intent(out),  optional  :: error            !< Error code
+    character(len=:),                    allocatable  :: message          !< Error message
+    integer(I4P)                                      :: recieved_type    !< Actual datatype found in JSON path
+    integer(I4P)                                      :: error_code       !< Internal error code
+    integer(I4P)                                      :: gathered_code    !< Aggregated internal error code
+    logical                                           :: is_value_found   !< Is value found in JSON path flag
     
+    
+    message = ''
     error_code = 0_I4P
     call json%info(json_path, found = is_value_found, var_type = recieved_type)
     if(.not. is_value_found) then
-      message = 'JSON Path "'//json_path//'"'//" doesn't exist"
-      error_code = ERROR_JSON_VALUE_NOT_FOUND
+      message = 'JSON Path "'//json_path//'"'//" doesn't exist;"
+      error_code = LOGGER_ERROR_JSON_VALUE_NOT_FOUND
     elseif(expected_type /= recieved_type) then
-      message = 'Expected data type is '//colorize(trim(json_types(expected_type)), color_fg = 'cyan')//     &
-                      ', but got '//colorize(trim(json_types(recieved_type)), color_fg = 'red')//' instead..'
-      error_code = ERROR_JSON_VALUE_TYPE_MISMATCH
+      message = 'JSON Path "'//json_path//'": '//'expected datatype is '//colorize(trim(JSON_TYPES(expected_type)), color_fg='cyan')//     &
+                      ', but found '//colorize(trim(JSON_TYPES(recieved_type)), color_fg='red')//' instead;'
+      error_code = LOGGER_ERROR_JSON_VALUE_TYPE_MISMATCH
     endif
-    if(error_code /= 0_I4P) call self%error(message, routine = routine, error_code = error_code, is_fatal = is_fatal)
-    if(present(error)) error = error_code
+    call self%gather_error_codes(message, error_code, routine=routine, file=file, line=line, is_fatal=is_fatal, gathered_code=gathered_code)
+    if(present(error)) error = gathered_code
   end subroutine check_json_value
 
 !-------------------------------------------------------------------------------------
-  subroutine check_directory(self, dir_path, is_create, routine, is_fatal, error)
+  subroutine check_directory(self, dir_path, is_create, routine, file, line, is_fatal, error)
 !-------------------------------------------------------------------------------------
 !< Checks directory presence in the specified path  
-!< If directory doesn't exist, logger can create it. 
+!< If directory doesn't exist, logger can create it.  
+!< Attention! This subroutine is collective. All MPI Processes must call it.
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),      intent(inout) :: self           !< Logger
-    character(len = *),           intent(in)    :: dir_path       !< Path to directory
-    logical,                      intent(in)    :: is_create      !< Create directory if it doesn't exist
-    character(len = *), optional, intent(in)    :: routine        !< Internal subroutine name
-    logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
-    integer(I4P),       optional, intent(out)   :: error          !< Error code
-    integer(I4P)                                :: error_code     !< Internal error code
-    logical                                     :: exist          !< Is directory found flag
+    class(fortran_logger_t),  intent(inout)           :: self           !< Logger
+    character(len = *),       intent(in)              :: dir_path       !< Path to directory
+    logical,                  intent(in)              :: is_create      !< Create directory if it doesn't exist
+    character(len = *),       intent(in),   optional  :: routine        !< Internal subroutine name
+    character(len=*),         intent(in),   optional  :: file           !< Source file name where directory is being checked, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in),   optional  :: line           !< Line where directory is being checked, e.g. \_\_LINE\_\_
+    logical,                  intent(in),   optional  :: is_fatal       !< Fatal error. Default is .false.
+    integer(I4P),             intent(out),  optional  :: error          !< Error code
+    integer(I4P)                                      :: error_code     !< Internal error code
+    integer(I4P)                                      :: gathered_code  !< Aggregated internal error code
+    logical                                           :: exist          !< Is directory found flag
 
-    error_code = 0
 #ifdef __INTEL_COMPILER
     inquire(directory = dir_path, exist = exist)
 #else
     inquire(file = dir_path, exist = exist)
 #endif
-    if(.not. exist) then
-      error_code = ERROR_DIRECTORY_NOT_FOUND
-      if(is_create) then
-        call self%info('Creating directory "'//dir_path//'"', routine = routine)
-        call execute_command_line('mkdir -p '//dir_path)
-      else
-        call self%error('Directory "'//dir_path//'"'//" doesn't exist,", routine = routine, error_code = error_code, is_fatal = is_fatal)
-      endif
+    error_code = 0_I4P; if(.not. exist) error_code = LOGGER_ERROR_DIRECTORY_NOT_FOUND
+    call self%gather_error_codes('Directory "'//dir_path//'"'//" doesn't exist;", error_code, routine=routine, file=file, line=line, &
+                                  is_fatal=is_fatal, gathered_code=gathered_code)
+    if(.not. exist .and. is_create) then
+      ! TODO next info message should be generated by correct MPI rank
+      call self%info('Creating directory "'//dir_path//'"', routine = routine)
+      call execute_command_line('mkdir -p '//dir_path)
     endif
-    if(present(error)) error = error_code
+    if(present(error)) error = gathered_code
   end subroutine check_directory
 
 !-------------------------------------------------------------------------------------
-  subroutine check_file(self, file_path, routine, is_fatal, error)
+  subroutine check_file(self, file_path, routine, file, line, is_fatal, error)
 !-------------------------------------------------------------------------------------
 !< Checks file presence in the specified path
+!< Attention! This subroutine is collective. All MPI Processes must call it.
 !-------------------------------------------------------------------------------------
-    class(fortran_logger_t),      intent(inout) :: self           !< Logger
-    character(len = *),           intent(in)    :: file_path      !< Path to directory
-    character(len = *), optional, intent(in)    :: routine        !< Internal subroutine name
-    logical,            optional, intent(in)    :: is_fatal       !< Fatal error. Default is .false.
-    integer(I4P),       optional, intent(out)   :: error          !< Error code
-    integer(I4P)                                :: error_code     !< Internal error code
-    logical                                     :: exist          !< Is file found flag
+    class(fortran_logger_t),  intent(inout)           :: self           !< Logger
+    character(len = *),       intent(in)              :: file_path      !< Path to directory
+    character(len = *),       intent(in),   optional  :: routine        !< Internal subroutine name
+    character(len=*),         intent(in),   optional  :: file           !< Source file name where directory is being checked, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in),   optional  :: line           !< Line where directory is being checked, e.g. \_\_LINE\_\_
+    logical,                  intent(in),   optional  :: is_fatal       !< Fatal error. Default is .false.
+    integer(I4P),             intent(out),  optional  :: error          !< Error code
+    integer(I4P)                                      :: error_code     !< Internal error code
+    integer(I4P)                                      :: gathered_code  !< Aggregated internal error code
+    logical                                           :: exist          !< Is file found flag
 
-    error_code = 0
     inquire(file = file_path, exist = exist)
-    if(.not. exist) then
-      error_code = ERROR_FILE_NOT_FOUND
-      call self%error('File "'//file_path//'"'//" doesn't exist,", routine = routine, error_code = error_code, is_fatal = is_fatal)
-    endif
-    if(present(error)) error = error_code
+    error_code = 0_I4P; if(.not. exist) error_code = LOGGER_ERROR_FILE_NOT_FOUND
+    call self%gather_error_codes('File "'//file_path//'"'//" doesn't exist;", error_code, routine=routine, file=file, line=line, &
+                                  is_fatal=is_fatal, gathered_code=gathered_code)
+    if(present(error)) error = gathered_code
   end subroutine check_file
 
 !-------------------------------------------------------------------------------------
-  subroutine check_error_LOGICAL(self, check_routine, error_code, routine, is_fatal)
+  subroutine check_error_LOGICAL(self, check_routine, error_code, routine, file, line, is_fatal)
 !-------------------------------------------------------------------------------------
 !< Checks logical error_code returned by external subroutine.  
 !< If error occurs and is_fatal = .true., program will stop execution.  
@@ -760,19 +797,20 @@ contains
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout)         :: self                 !< Logger
     character(len=*),         intent(in)            :: check_routine        !< Name of the external subroutine, e.g. MPI_Bcast
-    logical,                  intent(in)            :: error_code           !< Internal subroutine returned error code
-    character(len=*),         intent(in), optional  :: routine              !< Internal subroutine name
-    logical,                  intent(in), optional  :: is_fatal             !< Flag to stop execution is error occurs  
+    logical,                  intent(in)            :: error_code           !< Error code returned by external subroutine  
+    character(len = *),       intent(in), optional  :: routine              !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file                 !< Source file name where check_error is being called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line                 !< Line where check_error is being called, e.g. \_\_LINE\_\_
+    logical,                  intent(in), optional  :: is_fatal             !< Fatal error. Default is .false.  
                                                                             !< Default is .false.
-    integer(I1P)                                    :: converted_error_code !< Error code converted to I1P
+    integer(I4P)                                    :: converted_error_code !< Error code converted to I4P
 
-    converted_error_code = 1_I1P
-    if(error_code) converted_error_code = 0_I1P
-    call self%check_error(check_routine, converted_error_code, routine = routine, is_fatal = is_fatal)
+    converted_error_code = LOGGER_ERROR_CONVERTED_LOGICAL; if(error_code) converted_error_code = 0_I4P
+    call self%check_error(check_routine, converted_error_code, routine=routine, file=file, line=line, is_fatal=is_fatal)
   end subroutine check_error_LOGICAL
 
 !-------------------------------------------------------------------------------------
-  subroutine check_error_I1P(self, check_routine, error_code, routine, is_fatal)
+  subroutine check_error_I1P(self, check_routine, error_code, routine, file, line, is_fatal)
 !-------------------------------------------------------------------------------------
 !< Checks integer I1P error_code returned by external subroutine.  
 !< If error occurs and is_fatal = .true., program will stop execution.  
@@ -790,16 +828,18 @@ contains
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout)         :: self           !< Logger
     character(len=*),         intent(in)            :: check_routine  !< Name of the external subroutine, e.g. MPI_Bcast
-    integer(I1P),             intent(in)            :: error_code     !< Internal subroutine returned error code
+    integer(I1P),             intent(in)            :: error_code     !< Error code returned by external subroutine
     character(len=*),         intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file           !< Source file name where check_error is being called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line           !< Line where check_error is being called, e.g. \_\_LINE\_\_
     logical,                  intent(in), optional  :: is_fatal       !< Flag to stop execution is error occurs  
                                                                       !< Default is .false.
 
-    call self%gather_error_codes('Subroutine '//check_routine//' returned', error_code, routine = routine, is_fatal = is_fatal)
+    call self%gather_error_codes('Subroutine "'//check_routine//'" returned', error_code, routine=routine, file=file, line=line, is_fatal=is_fatal)
   end subroutine check_error_I1P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_error_I2P(self, check_routine, error_code, routine, is_fatal)
+  subroutine check_error_I2P(self, check_routine, error_code, routine, file, line, is_fatal)
 !-------------------------------------------------------------------------------------
 !< Checks integer I2P error_code returned by external subroutine.  
 !< If error occurs and is_fatal = .true., program will stop execution.  
@@ -817,16 +857,18 @@ contains
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout)         :: self           !< Logger
     character(len=*),         intent(in)            :: check_routine  !< Name of the external subroutine, e.g. MPI_Bcast
-    integer(I2P),             intent(in)            :: error_code     !< Internal subroutine returned error code
+    integer(I2P),             intent(in)            :: error_code     !< Error code returned by external subroutine
     character(len=*),         intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file           !< Source file name where check_error is being called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line           !< Line where check_error is being called, e.g. \_\_LINE\_\_
     logical,                  intent(in), optional  :: is_fatal       !< Flag to stop execution is error occurs  
                                                                       !< Default is .false.
 
-    call self%gather_error_codes('Subroutine '//check_routine//' returned', error_code, routine = routine, is_fatal = is_fatal)
+    call self%gather_error_codes('Subroutine "'//check_routine//'" returned', error_code, routine=routine, file=file, line=line, is_fatal=is_fatal)
   end subroutine check_error_I2P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_error_I4P(self, check_routine, error_code, routine, is_fatal)
+  subroutine check_error_I4P(self, check_routine, error_code, routine, file, line, is_fatal)
 !-------------------------------------------------------------------------------------
 !< Checks integer I4P error_code returned by external subroutine.  
 !< If error occurs and is_fatal = .true., program will stop execution.  
@@ -844,16 +886,18 @@ contains
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout)         :: self           !< Logger
     character(len=*),         intent(in)            :: check_routine  !< Name of the external subroutine, e.g. MPI_Bcast
-    integer(I4P),             intent(in)            :: error_code     !< Internal subroutine returned error code
+    integer(I4P),             intent(in)            :: error_code     !< Error code returned by external subroutine
     character(len=*),         intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file           !< Source file name where check_error is being called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line           !< Line where check_error is being called, e.g. \_\_LINE\_\_
     logical,                  intent(in), optional  :: is_fatal       !< Flag to stop execution is error occurs  
                                                                       !< Default is .false.
 
-    call self%gather_error_codes('Subroutine '//check_routine//' returned', error_code, routine = routine, is_fatal = is_fatal)
+    call self%gather_error_codes('Subroutine "'//check_routine//'" returned', error_code, routine=routine, file=file, line=line, is_fatal=is_fatal)
   end subroutine check_error_I4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_error_I8P(self, check_routine, error_code, routine, is_fatal)
+  subroutine check_error_I8P(self, check_routine, error_code, routine, file, line, is_fatal)
 !-------------------------------------------------------------------------------------
 !< Checks integer I8P error_code returned by external subroutine.  
 !< If error occurs and is_fatal = .true., program will stop execution.  
@@ -871,16 +915,18 @@ contains
 !-------------------------------------------------------------------------------------
     class(fortran_logger_t),  intent(inout)         :: self           !< Logger
     character(len=*),         intent(in)            :: check_routine  !< Name of the external subroutine, e.g. MPI_Bcast
-    integer(I8P),             intent(in)            :: error_code     !< Internal subroutine returned error code
+    integer(I8P),             intent(in)            :: error_code     !< Error code returned by external subroutine
     character(len=*),         intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),         intent(in), optional  :: file           !< Source file name where check_error is being called, e.g. \_\_FILE\_\_
+    integer(I4P),             intent(in), optional  :: line           !< Line where check_error is being called, e.g. \_\_LINE\_\_
     logical,                  intent(in), optional  :: is_fatal       !< Flag to stop execution is error occurs  
                                                                       !< Default is .false.
     
-    call self%gather_error_codes('Subroutine '//check_routine//' returned', error_code, routine = routine, is_fatal = is_fatal)
+    call self%gather_error_codes('Subroutine "'//check_routine//'" returned', error_code, routine=routine, file=file, line=line, is_fatal=is_fatal)
   end subroutine check_error_I8P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_CR4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_CR4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R4P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -900,15 +946,16 @@ contains
     complex(R4P),    allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_CR4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_CR8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_CR8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R8P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -928,16 +975,17 @@ contains
     complex(R8P),    allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_CR8P
 
 #ifdef _R16P
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_CR16P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_CR16P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R16P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -957,16 +1005,17 @@ contains
     complex(R16P),   allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_CR16P
 #endif
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_CR4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_CR4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R4P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -986,15 +1035,16 @@ contains
     complex(R4P),    allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_CR4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_CR8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_CR8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R8P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1014,16 +1064,17 @@ contains
     complex(R8P),    allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_CR8P
 
 #ifdef _R16P
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_CR16P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_CR16P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R16P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1043,16 +1094,17 @@ contains
     complex(R16P),   allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_CR16P
 #endif
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_CR4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_CR4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R4P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1072,15 +1124,16 @@ contains
     complex(R4P),    allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_CR4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_CR8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_CR8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R8P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1100,16 +1153,17 @@ contains
     complex(R8P),    allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_CR8P
 
 #ifdef _R16P
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_CR16P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_CR16P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R16P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1129,16 +1183,17 @@ contains
     complex(R16P),   allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_CR16P
 #endif
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_CR4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_CR4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R4P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1158,15 +1213,16 @@ contains
     complex(R4P),    allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_CR4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_CR8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_CR8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R8P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1186,16 +1242,17 @@ contains
     complex(R8P),    allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_CR8P
 
 #ifdef _R16P
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_CR16P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_CR16P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of complex R16P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1215,16 +1272,17 @@ contains
     complex(R16P),   allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_CR16P
 #endif
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_R4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_R4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R4P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -1244,15 +1302,16 @@ contains
     real(R4P),       allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_R4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_R8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_R8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R8P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -1272,16 +1331,17 @@ contains
     real(R8P),       allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_R8P
 
 #ifdef _R16P
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_R16P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_R16P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R16P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -1301,16 +1361,17 @@ contains
     real(R16P),      allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_R16P
 #endif
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_R4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_R4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R4P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1330,15 +1391,16 @@ contains
     real(R4P),       allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_R4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_R8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_R8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R8P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1358,16 +1420,17 @@ contains
     real(R8P),       allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_R8P
 
 #ifdef _R16P
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_R16P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_R16P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R16P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1387,16 +1450,17 @@ contains
     real(R16P),      allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_R16P
 #endif
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_R4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_R4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R4P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1416,15 +1480,16 @@ contains
     real(R4P),       allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_R4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_R8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_R8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R8P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1444,16 +1509,17 @@ contains
     real(R8P),       allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_R8P
 
 #ifdef _R16P
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_R16P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_R16P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R16P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1473,16 +1539,17 @@ contains
     real(R16P),      allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_R16P
 #endif
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_R4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_R4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R4P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1502,15 +1569,16 @@ contains
     real(R4P),       allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_R4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_R8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_R8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R8P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1530,16 +1598,17 @@ contains
     real(R8P),       allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_R8P
 
 #ifdef _R16P
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_R16P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_R16P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of real R16P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1559,16 +1628,17 @@ contains
     real(R16P),      allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_R16P
 #endif
 
 !-------------------------------------------------------------------------------------
-subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
+subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I1P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -1588,15 +1658,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I1P),    allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_I1P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_I2P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_I2P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I2P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -1616,15 +1687,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I2P),    allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_I2P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_I4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_I4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I4P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -1644,15 +1716,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I4P),    allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_I4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank1_I8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank1_I8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I8P buffer of rank = 1  
 !< Program will stop execution if buffer was not allocated  
@@ -1672,15 +1745,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I8P),    allocatable, intent(in)            :: buffer(:)    !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank1_I8P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_I1P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_I1P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I1P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1700,15 +1774,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I1P),    allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_I1P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_I2P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_I2P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I2P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1728,15 +1803,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I2P),    allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_I2P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_I4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_I4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I4P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1756,15 +1832,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I4P),    allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_I4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank2_I8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank2_I8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I8P buffer of rank = 2  
 !< Program will stop execution if buffer was not allocated  
@@ -1784,15 +1861,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I8P),    allocatable, intent(in)            :: buffer(:,:)  !< Buffer to be checked
     character(len=*),             intent(in)            :: buffer_name  !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine      !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file         !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line         !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code   !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank2_I8P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_I1P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_I1P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I1P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1812,15 +1890,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I1P),    allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_I1P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_I2P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_I2P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I2P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1840,15 +1919,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I2P),    allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_I2P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_I4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_I4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I4P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1868,15 +1948,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I4P),    allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_I4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank3_I8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank3_I8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I8P buffer of rank = 3  
 !< Program will stop execution if buffer was not allocated  
@@ -1896,15 +1977,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I8P),    allocatable, intent(in)            :: buffer(:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name    !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine        !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file           !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line           !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code     !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank3_I8P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_I1P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_I1P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I1P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1924,15 +2006,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I1P),    allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_I1P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_I2P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_I2P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I2P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1952,15 +2035,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I2P),    allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_I2P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_I4P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_I4P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I4P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -1980,15 +2064,16 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I4P),    allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_I4P
 
 !-------------------------------------------------------------------------------------
-  subroutine check_alloc_rank4_I8P(self, buffer, buffer_name, routine)
+  subroutine check_alloc_rank4_I8P(self, buffer, buffer_name, routine, file, line)
 !-------------------------------------------------------------------------------------
 !< Checks allocation of integer I8P buffer of rank = 4  
 !< Program will stop execution if buffer was not allocated  
@@ -2008,18 +2093,19 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I8P),    allocatable, intent(in)            :: buffer(:,:,:,:)  !< Buffer to be checked
     character(len = *),           intent(in)            :: buffer_name      !< Name of the Buffer
     character(len=*),             intent(in), optional  :: routine          !< Internal subroutine name
+    character(len=*),             intent(in), optional  :: file             !< Source file name where check_alloc is being called, e.g. \_\_FILE\_\_
+    integer(I4P),                 intent(in), optional  :: line             !< Line where check_alloc is being called, e.g. \_\_LINE\_\_
     integer(I4P)                                        :: error_code       !< logger error code
 
-    error_code = 0
-    if(.not. allocated(buffer)) error_code = ERROR_ALLOCATION_FAILED
-    call self%gather_error_codes('Allocation of '//buffer_name//' failed,', error_code, routine = routine, is_fatal = .true.)
+    error_code = 0_I4P; if(.not. allocated(buffer)) error_code = LOGGER_ERROR_ALLOCATION_FAILED
+    call self%gather_error_codes('Allocation of "'//buffer_name//'" failed;', error_code, routine=routine, file=file, line=line, is_fatal=.true.)
   end subroutine check_alloc_rank4_I8P
 
 !-------------------------------------------------------------------------------------
 #ifdef _MPI
-  subroutine print(self, level, message, routine, error_code, rank)
+  subroutine print(self, level, message, routine, line, file, error_code, rank)
 #else
-  subroutine print(self, level, message, routine, error_code )
+  subroutine print(self, level, message, routine, line, file, error_code)
 #endif
 !-------------------------------------------------------------------------------------
 !< Logger printer
@@ -2028,28 +2114,38 @@ subroutine check_alloc_rank1_I1P(self, buffer, buffer_name, routine)
     integer(I4P),            intent(in)           :: level        !< Level of the message
     character(len=*),        intent(in)           :: message      !< Message to be printed
     character(len=*),        intent(in), optional :: routine      !< Internal subroutine name
+    character(len=*),        intent(in), optional :: file         !< Source file name
+    integer(I4P),            intent(in), optional :: line         !< Source file line
     integer(I4P),            intent(in), optional :: error_code   !< Occured error code
 #ifdef _MPI
     integer(I4P),            intent(in), optional :: rank         !< MPI rank
 #endif
-    character(len=:),         allocatable         :: buffer       !< Message buffer
+    character(len=:),        allocatable          :: buffer       !< Message buffer
     type(datetime)                                :: dtime        !< datetime object
 
+    buffer = ''
     if(self%print_timestamp) then
       dtime = dtime%now()
-      buffer = self%timestamp_object%output(dtime%strftime(self%timestamp_format))
-    else
-      buffer = ''
+      buffer = buffer//self%timestamp_object%output(dtime%strftime(self%timestamp_format))
     endif
 
     buffer = buffer//self%logger_object(level)%output()
     if(present(routine)) buffer = buffer//self%routine_object%output(routine)
 
     buffer = buffer//'  '//message
-    if(present(error_code)) buffer = buffer//' error code '//trim(str(n = error_code))
+    if(present(error_code)) buffer = buffer//' error code '//trim(str(error_code))
 #ifdef _MPI
-    if(present(rank)) buffer = buffer//' on rank '//trim(str(n = rank, no_sign = .true.))
+    if(present(rank)) buffer = buffer//' on rank '//trim(str(n=rank, no_sign=.true.))
 #endif
+    if(present(file).or.present(line)) then
+      buffer = buffer//' ('
+      if(present(file)) buffer = buffer//'file: "'//file//'"'
+      if(present(line)) then
+        if(present(file)) buffer = buffer//', '
+        buffer = buffer//'line: '//trim(str(line, no_sign=.true.))
+      endif
+      buffer = buffer//')'
+    endif
 
     write(self%logger_object(level)%get_unit(), '(a)') buffer
     flush(self%logger_object(level)%get_unit())

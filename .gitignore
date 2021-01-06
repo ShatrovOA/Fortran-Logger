@@ -35,11 +35,16 @@
 .fortls
 .vscode
 
+# Coverage files
+*.gcov
+
 # Libraries
 static
 shared
 static_mpi
 shared_mpi
+bin
+bin_mpi
 
 # Logs
 *.log

@@ -1,4 +1,7 @@
+!< Fortran-Logger project, definition of [[element_object]] class that handles different levels outputs.
+
 module logger_element_object
+!< Fortran-Logger project, definition of [[element_object]] class that handles different levels outputs.
 use penf, only: I4P
 use face, only: colorize
 use iso_fortran_env, only: output_unit
@@ -7,6 +10,7 @@ private
 public :: element_object
 
   type :: element_object
+  !< Definition of Object Class
   private
     integer(I4P)                  :: out_unit !< Unit used to print output
     character(len=:), allocatable :: string   !< Element string

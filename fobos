@@ -1,323 +1,285 @@
 [modes]
-modes = shared-gnu static-gnu tests-gnu shared-gnu-mpi static-gnu-mpi static-gnu-caf
-        shared-gnu-debug static-gnu-debug tests-gnu-debug shared-gnu-mpi-debug static-gnu-mpi-debug
-        shared-intel static-intel tests-intel shared-intel-mpi static-intel-mpi 
-        shared-intel-debug static-intel-debug tests-intel-debug shared-intel-mpi-debug static-intel-mpi-debug 
+modes = shared-gnu static-gnu tests-gnu tests-gnu-mpi shared-gnu-mpi static-gnu-mpi
+        shared-gnu-debug static-gnu-debug tests-gnu-debug tests-gnu-mpi-debug shared-gnu-mpi-debug static-gnu-mpi-debug
+        shared-intel static-intel tests-intel tests-intel-mpi shared-intel-mpi static-intel-mpi 
+        shared-intel-debug static-intel-debug tests-intel-debug tests-intel-mpi-debug shared-intel-mpi-debug static-intel-mpi-debug 
 
 [common-variables]
+$TARGET         = src/lib/fortran_logger.F90
+$TEST_TARGET    = src/tests/run_tests.F90
+$FORD_FILE      = doc/main_page.md
+$STATIC_LIB     = libfortranlogger.a
+$SHARED_LIB     = libfortranlogger.so
+$MPI_STATIC_LIB = libfortranlogger_mpi.a
+$MPI_SHARED_LIB = libfortranlogger_mpi.so
 $MPI_PREPROCESS = -D_MPI
-$CAF_PREPROCESS = -D_CAF
-$R16P_SUPPORED = -D_R16P
-$CSHARED_GNU = -cpp -c -fPIC -frealloc-lhs -fno-omit-frame-pointer -DUSE_UCS4 -std=f2018 -ffree-line-length-none
-$CSHARED_INT = -cpp -c -fpic -assume realloc_lhs 
-$LSHARED     = -shared
-$CSTATIC_GNU = -cpp -c -frealloc-lhs -fbacktrace -pedantic -std=f2008 -fno-omit-frame-pointer -DUSE_UCS4 -ffree-line-length-none
-$CSTATIC_INT = -cpp -c -assume realloc_lhs 
-$DEBUG_GNU   = -O0 -g3 -DUSE_UCS4 -std=f2018 -m64 -ffree-line-length-0 -O0 -W -Wall -ggdb -fopt-info -fopt-info-optall-optimized -ftree-vectorize -g -fimplicit-none -Wline-truncation  -Wcharacter-truncation  -Wsurprising  -Waliasing -Wimplicit-interface -Wunused-parameter  -fwhole-file  -fcheck=all  -pedantic  -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow -ffpe-summary=none -std=f2008 -Warray-bounds -Wimplicit-procedure -Wunderflow -Wuninitialized -fimplicit-none -fbacktrace -fdump-core -finit-real=nan
-$DEBUG_INT   = -O0 -check arg_temp_created -check format -check assume -check format -check output_conversion -check pointers -check stack -check uninit -debug all -warn all -extend-source 132 -traceback
-$OPTIMIZE    = -O2
-$EXDIRS      = FACE/src/tests/ FLAP/src/tests/ PENF/src/tests/ datetime-fortran/src/tests/ json-fortran/src/tests json-fortran/visual_studio
+$R16P_SUPPORTED = -D_R16P
+$UCS4_SUPPORTED = -DUSE_UCS4
+$CSHARED_GNU    = -cpp -c -fPIC -frealloc-lhs -fno-omit-frame-pointer -std=f2018 -ffree-line-length-none -shared
+$CSHARED_INT    = -cpp -c -fpic -assume realloc_lhs -shared
+$CSTATIC_GNU    = -cpp -c -frealloc-lhs -pedantic -std=f2018 -fno-omit-frame-pointer -ffree-line-length-none
+$CSTATIC_INT    = -cpp -c -assume realloc_lhs 
+$DEBUG_GNU      = -O0 -g3 -m64 -W -Wall -ggdb -fopt-info -fopt-info-optall-optimized -ftree-vectorize -Wline-truncation -Wcharacter-truncation -Wsurprising -Waliasing -Wimplicit-interface -Wunused-parameter  -fwhole-file  -fcheck=all -ffpe-trap=invalid,zero,overflow,underflow -ffpe-summary=none -Warray-bounds -Wimplicit-procedure -Wunderflow -Wuninitialized -fimplicit-none -fbacktrace -fdump-core -finit-real=nan
+$DEBUG_INT      = -O0 -g -check arg_temp_created -check format -check assume -check format -check output_conversion -check pointers -check stack -check uninit -debug all -warn all -extend-source 132 -traceback
+$OPTIMIZE       = -O2
+$EXCLUDE_DIRS   = FACE/src/tests/ 
+                  FLAP/src/tests/ 
+                  PENF/src/tests/ 
+                  datetime-fortran/src/tests/ 
+                  json-fortran/src/tests 
+                  json-fortran/visual_studio 
+                  datetime-fortran/tests
 
 # main modes
-[shared-gnu]
-template  = template-shared-gnu
-target    = src/lib/fortran_logger.F90
-build_dir = ./shared/
-output    = libfortranlogger.so
-mklib     = shared
-preproc   = $R16P_SUPPORED
-
-[shared-gnu-mpi]
-template  = template-shared-gnu
-target    = src/lib/fortran_logger.F90
-build_dir = ./shared_mpi/
-output    = libfortranlogger_mpi.so
-mklib     = shared
-preproc   = $MPI_PREPROCESS $R16P_SUPPORED
-mpi       = true
-
+# static
 [static-gnu]
-template  = template-static-gnu
-target    = src/lib/fortran_logger.F90
-build_dir = ./static/
-output    = libfortranlogger.a
-mklib     = static
-preproc   = $R16P_SUPPORED
-
-[static-gnu-mpi]
-template  = template-static-gnu
-target    = src/lib/fortran_logger.F90
-build_dir = ./static_mpi/
-output    = libfortranlogger_mpi.a
-mklib     = static
-preproc   = $MPI_PREPROCESS $R16P_SUPPORED
-mpi       = true
-
-[static-gnu-caf]
-template  = template-static-gnu
-target    = src/lib/fortran_logger.F90
-build_dir = ./static_caf/
-output    = libfortranlogger_caf.a
-mklib     = static
-preproc   = $CAF_PREPROCESS $R16P_SUPPORED
-coarray   = true
-
-[tests-gnu]
-template  = template-static-gnu
-build_dir = exe
-
-[shared-gnu-debug]
-template  = template-shared-gnu-debug
-target    = src/lib/fortran_logger.F90
-build_dir = ./shared/
-output    = libfortranlogger.so
-mklib     = shared
-preproc   = $R16P_SUPPORED
-
-[shared-gnu-mpi-debug]
-template  = template-shared-gnu-debug
-target    = src/lib/fortran_logger.F90
-build_dir = ./shared_mpi/
-output    = libfortranlogger_mpi.so
-mklib     = shared
-preproc   = $MPI_PREPROCESS $R16P_SUPPORED
-mpi       = true
+template  = template-static
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED
+compiler  = gnu
+cflags    = $CSTATIC_GNU $OPTIMIZE
 
 [static-gnu-debug]
-template  = template-static-gnu-debug
-target    = src/lib/fortran_logger.F90
-build_dir = ./static/
-output    = libfortranlogger.a
-mklib     = static
-preproc   = $R16P_SUPPORED
+template  = template-static
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED
+compiler  = gnu
+cflags    = $CSTATIC_GNU $DEBUG_GNU
+
+[static-gnu-mpi]
+template  = template-static-mpi
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED $MPI_PREPROCESS
+compiler  = gnu
+cflags    = $CSTATIC_GNU $OPTIMIZE
 
 [static-gnu-mpi-debug]
-template  = template-static-gnu-debug
-target    = src/lib/fortran_logger.F90
-build_dir = ./static_mpi/
-output    = libfortranlogger_mpi.a
-mklib     = static
-preproc   = $MPI_PREPROCESS $R16P_SUPPORED
-mpi       = true
-
-[tests-gnu-debug]
-template  = template-static-gnu-debug
-build_dir = exe
-
-[shared-intel]
-template  = template-shared-intel
-target    = src/lib/fortran_logger.F90
-build_dir = ./shared/
-output    = libfortranlogger.so
-mklib     = shared
-preproc   = $R16P_SUPPORED
-
-[shared-intel-mpi]
-template  = template-shared-intel
-target    = src/lib/fortran_logger.F90
-build_dir = ./shared_mpi/
-output    = libfortranlogger_mpi.so
-mklib     = shared
-preproc   = $MPI_PREPROCESS $R16P_SUPPORED
-mpi       = true
+template  = template-static-mpi
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED $MPI_PREPROCESS
+compiler  = gnu
+cflags    = $CSTATIC_GNU $DEBUG_GNU
 
 [static-intel]
-template  = template-static-intel
-target    = src/lib/fortran_logger.F90
-build_dir = ./static/
-output    = libfortranlogger.a
-mklib     = static
-preproc   = $R16P_SUPPORED
-
-[static-intel-mpi]
-template  = template-static-intel
-target    = src/lib/fortran_logger.F90
-build_dir = ./static_mpi/
-output    = libfortranlogger_mpi.a
-mklib     = static
-preproc   = $MPI_PREPROCESS $R16P_SUPPORED
-mpi       = true
-
-[tests-intel]
-template  = template-static-intel
-build_dir = exe
-
-[shared-intel-debug]
-template  = template-shared-intel-debug
-target    = src/lib/fortran_logger.F90
-build_dir = ./shared/
-output    = libfortranlogger.so
-mklib     = shared
-preproc   = $R16P_SUPPORED
-
-[shared-intel-mpi-debug]
-template  = template-shared-intel-debug
-target    = src/lib/fortran_logger.F90
-build_dir = ./shared_mpi/
-output    = libfortranlogger_mpi.so
-mklib     = shared
-preproc   = $MPI_PREPROCESS
-mpi       = true
+template  = template-static
+preproc   = $R16P_SUPPORTED
+compiler  = intel
+cflags    = $CSTATIC_INT $OPTIMIZE
 
 [static-intel-debug]
-template  = template-static-intel-debug
-target    = src/lib/fortran_logger.F90
-build_dir = ./static/
-output    = libfortranlogger.a
-mklib     = static
-preproc   = $R16P_SUPPORED
+template  = template-static
+preproc   = $R16P_SUPPORTED
+compiler  = intel
+cflags    = $CSTATIC_INT $DEBUG_INT
+
+[static-intel-mpi]
+template  = template-static-mpi
+preproc   = $R16P_SUPPORTED $MPI_PREPROCESS
+compiler  = intel
+cflags    = $CSTATIC_INT $OPTIMIZE
 
 [static-intel-mpi-debug]
-template  = template-static-intel-debug
-target    = src/lib/fortran_logger.F90
-build_dir = ./static_mpi/
-output    = libfortranlogger_mpi.a
-mklib     = static 
-preproc   = $MPI_PREPROCESS $R16P_SUPPORED
-mpi       = true
+template  = template-static-mpi
+preproc   = $R16P_SUPPORTED $MPI_PREPROCESS
+compiler  = intel
+cflags    = $CSTATIC_INT $DEBUG_INT
+
+# shared
+[shared-gnu]
+template  = template-shared
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED
+compiler  = gnu
+cflags    = $CSHARED_GNU $OPTIMIZE
+
+[shared-gnu-debug]
+template  = template-shared
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED
+compiler  = gnu
+cflags    = $CSHARED_GNU $DEBUG_GNU
+
+[shared-gnu-mpi]
+template  = template-shared-mpi
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED $MPI_PREPROCESS
+compiler  = gnu
+cflags    = $CSHARED_GNU $OPTIMIZE
+
+[shared-gnu-mpi-debug]
+template  = template-shared-mpi
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED $MPI_PREPROCESS
+compiler  = gnu
+cflags    = $CSHARED_GNU $DEBUG_GNU
+
+[shared-intel]
+template  = template-shared
+preproc   = $R16P_SUPPORTED
+compiler  = intel
+cflags    = $CSHARED_INT $OPTIMIZE
+
+[shared-intel-debug]
+template  = template-shared
+preproc   = $R16P_SUPPORTED
+compiler  = intel
+cflags    = $CSHARED_INT $DEBUG_INT
+
+[shared-intel-mpi]
+template  = template-shared-mpi
+preproc   = $R16P_SUPPORTED $MPI_PREPROCESS
+compiler  = intel
+cflags    = $CSHARED_INT $OPTIMIZE
+
+[shared-intel-mpi-debug]
+template  = template-shared-mpi
+preproc   = $R16P_SUPPORTED $MPI_PREPROCESS
+compiler  = intel
+cflags    = $CSHARED_INT $DEBUG_INT
+
+# tests
+[tests-gnu]
+template  = template-tests
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED
+compiler  = gnu
+cflags    = $CSHARED_GNU $OPTIMIZE
+
+[tests-gnu-debug]
+template  = template-tests
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED
+compiler  = gnu
+cflags    = $CSHARED_GNU $DEBUG_GNU
+
+[tests-gnu-mpi]
+template  = template-tests-mpi
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED $MPI_PREPROCESS
+compiler  = gnu
+cflags    = $CSHARED_GNU $OPTIMIZE
+
+[tests-gnu-mpi-debug]
+template  = template-tests-mpi
+preproc   = $R16P_SUPPORTED $UCS4_SUPPORTED $MPI_PREPROCESS
+compiler  = gnu
+cflags    = $CSHARED_GNU $DEBUG_GNU
+
+[tests-intel]
+template  = template-tests
+preproc   = $R16P_SUPPORTED
+compiler  = intel
+cflags    = $CSHARED_INT $OPTIMIZE
 
 [tests-intel-debug]
-template  = template-static-intel-debug
-build_dir = exe
+template  = template-tests
+preproc   = $R16P_SUPPORTED
+compiler  = intel
+cflags    = $CSHARED_INT $DEBUG_INT
 
-#templates
-[template-shared-gnu]
-compiler     = gnu
-cflags       = $CSHARED_GNU $OPTIMIZE
-lflags       = $LSHARED $OPTIMIZE
-mod_dir      = ./mod/
-obj_dir      = ./obj/
-src          = ./src/
-exclude_dirs = $EXDIRS
-colors       = True
-quiet        = False
-log          = True
-jobs         = 10
+[tests-intel-mpi]
+template  = template-tests-mpi
+preproc   = $R16P_SUPPORTED $MPI_PREPROCESS
+compiler  = intel
+cflags    = $CSHARED_INT $OPTIMIZE
 
-[template-static-gnu]
-compiler     = gnu
-cflags       = $CSTATIC_GNU $OPTIMIZE
-lflags       = $OPTIMIZE
-mod_dir      = ./mod/
-obj_dir      = ./obj/
-src          = ./src/
-exclude_dirs = $EXDIRS
-colors       = True
-quiet        = False
-log          = True
-jobs         = 10
+[tests-intel-mpi-debug]
+template  = template-tests-mpi
+preproc   = $R16P_SUPPORTED $MPI_PREPROCESS
+compiler  = intel
+cflags    = $CSHARED_INT $DEBUG_INT
 
+# Templates 
+[template-static]
+cflags_heritage = True
+build_dir       = ./static/
+mod_dir         = ./mod/
+obj_dir         = ./obj/
+src             = ./src/
+colors          = True
+quiet           = False
+log             = False
+jobs            = 4
+mklib           = static
+target          = $TARGET
+output          = $STATIC_LIB
+exclude_dirs    = $EXCLUDE_DIRS
 
-[template-shared-gnu-debug]
-compiler     = gnu
-cflags       = $CSHARED_GNU $DEBUG_GNU
-lflags       = $LSHARED $DEBUG_GNU
-mod_dir      = ./mod/
-obj_dir      = ./obj/
-src          = ./src/
-exclude_dirs = $EXDIRS
-colors       = True
-quiet        = False
-log          = True
-jobs         = 10
+[template-static-mpi]
+cflags_heritage = True
+build_dir       = ./static_mpi/
+mod_dir         = ./mod/
+obj_dir         = ./obj/
+src             = ./src/
+colors          = True
+quiet           = False
+log             = False
+jobs            = 4
+mklib           = static
+target          = $TARGET
+output          = $MPI_STATIC_LIB
+exclude_dirs    = $EXCLUDE_DIRS
+mpi             = True
 
+[template-shared]
+cflags_heritage = True
+build_dir       = ./shared/
+mod_dir         = ./mod/
+obj_dir         = ./obj/
+src             = ./src/
+colors          = True
+quiet           = False
+log             = False
+jobs            = 4
+mklib           = shared
+target          = $TARGET
+output          = $SHARED_LIB
+exclude_dirs    = $EXCLUDE_DIRS
 
-[template-static-gnu-debug]
-compiler     = gnu
-cflags       = $CSTATIC_GNU $DEBUG_GNU
-lflags       = $DEBUG_GNU
-mod_dir      = ./mod/
-obj_dir      = ./obj/
-src          = ./src/
-exclude_dirs = $EXDIRS
-colors       = True
-quiet        = False
-log          = True
-jobs         = 10
+[template-shared-mpi]
+cflags_heritage = True
+build_dir       = ./shared_mpi/
+mod_dir         = ./mod/
+obj_dir         = ./obj/
+src             = ./src/
+colors          = True
+quiet           = False
+log             = False
+jobs            = 4
+mklib           = shared
+target          = $TARGET
+output          = $MPI_SHARED_LIB
+exclude_dirs    = $EXCLUDE_DIRS
+mpi             = True
 
+[template-tests]
+cflags_heritage = True
+build_dir       = ./bin/
+mod_dir         = ./mod/
+obj_dir         = ./obj/
+src             = ./src/
+colors          = True
+quiet           = False
+log             = False
+jobs            = 4
+target          = $TEST_TARGET
+exclude_dirs    = $EXCLUDE_DIRS
 
-[template-shared-intel]
-compiler     = intel
-cflags       = $CSHARED_INT $OPTIMIZE
-lflags       = $LSHARED $OPTIMIZE
-mod_dir      = ./mod/
-obj_dir      = ./obj/
-src          = ./src/
-exclude_dirs = $EXDIRS
-colors       = True
-quiet        = False
-log          = True
-jobs         = 10
-
-
-[template-static-intel]
-compiler     = intel
-cflags       = $CSTATIC_INT $OPTIMIZE
-lflags       = $OPTIMIZE
-mod_dir      = ./mod/
-obj_dir      = ./obj/
-src          = ./src/
-exclude_dirs = $EXDIRS
-colors       = True
-quiet        = False
-log          = True
-jobs         = 10
-
-
-[template-shared-intel-debug]
-compiler     = intel
-cflags       = $CSHARED_INT $DEBUG_INT
-lflags       = $LSHARED $DEBUG_INT
-mod_dir      = ./mod/
-obj_dir      = ./obj/
-src          = ./src/
-exclude_dirs = $EXDIRS
-colors       = True
-quiet        = False
-log          = True
-jobs         = 10
-
-
-[template-static-intel-debug]
-compiler     = intel
-cflags       = $CSTATIC_INT $DEBUG_INT
-lflags       = $DEBUG_INT
-mod_dir      = ./mod/
-obj_dir      = ./obj/
-src          = ./src/
-exclude_dirs = $EXDIRS
-colors       = True
-quiet        = False
-log          = True
-jobs         = 10
-
+[template-tests-mpi]
+cflags_heritage = True
+build_dir       = ./bin_mpi/
+mod_dir         = ./mod/
+obj_dir         = ./obj/
+src             = ./src/
+colors          = True
+quiet           = False
+log             = False
+jobs            = 4
+target          = $TEST_TARGET
+exclude_dirs    = $EXCLUDE_DIRS
+mpi             = True
 
 [rule-makedoc]
 help   = Rule for building documentation from source files
 rule_1 = rm -rf doc/html/*
-rule_2 = ford doc/main_page.md
-rule_3 = cp -r doc/html/publish/* doc/html/
+rule_2 = ford $FORD_FILE
 
 [rule-deldoc]
 help = Rule for deleting documentation
 rule = rm -rf doc/html/*
 
-[rule-maketar]
-help = Rule for making tar archive of the project
-rule = tar -czf vtk_fortran.tar.gz *
-
 [rule-makecoverage]
 help   = Rule for performing coverage analysis
-rule_1 = FoBiS.py clean -mode tests-gnu
-rule_2 = FoBiS.py build -mode tests-gnu -coverage
-rule_3 = ./run_tests.sh
-rule_4 = gcov -o exe/obj/ src/lib/vtk_fortran*.f90
-
-[rule-coverage-analysis]
-help   = Rule for performing coverage analysis and saving reports in markdown
-rule_1 = FoBiS.py clean -mode tests-gnu
-rule_2 = FoBiS.py build -mode tests-gnu -coverage
-rule_3 = ./run_tests.sh
-rule_4 = gcov -o exe/obj/ src/lib/vtk_fortran*.f90
-rule_5 = FoBiS.py rule -gcov_analyzer wiki/ Coverage-Analysis
-rule_6 = rm -f *.gcov XML_*vt?
+rule_1 = FoBiS.py clean -mode tests-gnu-mpi-debug
+rule_2 = FoBiS.py build -mode tests-gnu-mpi-debug -coverage
+rule_3 = mpirun -np 4 ./bin_mpi/run_tests
+rule_4 = gcov -o bin_mpi/obj/ src/lib/*
